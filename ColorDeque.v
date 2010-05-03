@@ -407,23 +407,23 @@ Ltac pisp t := try subst;
   match goal with
     | [H : ?a <> ?a |- _] =>
       let fname := fresh 
-        in unfold not in H;
+        in abstract (unfold not in H;
           pose (H (eq_refl _)) as fname;
-            inversion fname; pisp t
-    | [H:Red=Yellow |- _] => inversion H;  pisp t
-    | [H:Red=Green |- _] => inversion H;  pisp t
-    | [H:Yellow=Green |- _] => inversion H;  pisp t
-    | [H:Yellow=Red |- _] => inversion H;  pisp t
-    | [H:Green=Red |- _] => inversion H;  pisp t
-    | [H:Green=Yellow |- _] => inversion H;  pisp t
-    | [ H : true = false |- _] => inversion H;  pisp t
-    | [ H : None = Some ?a |- _] => inversion H;  pisp t
-    | [ H : Some ?a = None |- _] => inversion H;  pisp t
-    | [ H : False |- _] => inversion H;  pisp t
-
+            inversion fname)
+    | [H:Red=Yellow |- _] => abstract (inversion H)
+    | [H:Red=Green |- _] => abstract (inversion H)
+    | [H:Yellow=Green |- _] => abstract (inversion H)
+    | [H:Yellow=Red |- _] => abstract (inversion H)
+    | [H:Green=Red |- _] => abstract (inversion H)
+    | [H:Green=Yellow |- _] => abstract (inversion H)
+    | [ H : true = false |- _] => abstract (inversion H)
+    | [ H : None = Some ?a |- _] => abstract (inversion H)
+    | [ H : Some ?a = None |- _] => abstract (inversion H)
+    | [ H : False |- _] => abstract (inversion H)
+(*
     | [ H : True |- _] => clear H; pisp t
     | [ H : ?a = ?a |- _] => clear H;  pisp t
-
+*)
     | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t
     | [ |- regular (Full _ _) ] => unfold regular;  pisp t
     | [ H : regular (Full _ _) |- _] => unfold regular in H;  pisp t
@@ -676,39 +676,6 @@ match x with
     end x0
 end.
 
-Definition injectSemi T (x:Deque T) (z:T) : Deque T :=
-  match x with
-    | Empty => Full (Single (One z) Zero) Empty
-(*    | Full _ (Single Zero (Five a b c d e)) Empty =>
-      Full (Single (Three a b c) (Three d e z)) Empty
-*)    | Full _ ss r =>
-      match ss in SubStack _ V return Deque (prod V V) -> Deque T with
-        | Single p s =>
-          fun (v:Deque (prod T T)) =>
-            match s with
-              | Zero => Full (Single p (One z)) v
-              | One a => Full (Single p (Two a z)) v
-              | Two a b => Full (Single p (Three a b z)) v
-              | Three a b c => Full (Single p (Four a b c z)) v
-              | Four a b c d => Full (Single p (Five a b c d z)) v
-              | Five a b c d e => 
-                match p,v with
-                  | Zero,Empty => Full (Single (Three a b c) (Three d e z)) Empty
-                  | _,_ => x
-                end
-            end
-        | Multiple t0 p s r1 => 
-          fun (v:Deque (prod t0 t0)) => 
-            match s with
-              | Zero => Full (Multiple p (One z) r1) v
-              | One a => Full (Multiple p (Two a z) r1) v
-              | Two a b => Full (Multiple p (Three a b z) r1) v
-              | Three a b c => Full (Multiple p (Four a b c z) r1) v
-              | Four a b c d => Full (Multiple p (Five a b c d z) r1) v
-              | _ => x
-            end 
-      end r
-  end.
 
 Lemma unzipMixApp :
   forall T (x:list (prod T T)) (y:list T) (z:list T),
@@ -719,19 +686,6 @@ Proof.
   rewrite IHx; auto.
 Qed.
 Hint Rewrite unzipMixApp : anydb.
-
-Lemma injectSemiDoes :
-  forall T (x:Deque T) (z:T),
-    regular x ->
-    (toListDeque x ++ (z :: nil)) = toListDeque (injectSemi x z).
-Proof.
-  clear. intros.
-  destruct x.
-  asp.
-  destruct s.
-  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
-  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
-Qed.
 
 Require Import caseTactic.
 
@@ -760,6 +714,53 @@ Ltac subStackCase c x :=
         [c "Single"
           |c "Multiple"].
 
+Definition injectSemi T (x:Deque T) (z:T) : Deque T :=
+  match x with
+    | Empty => Full (Single (One z) Zero) Empty
+(*    | Full _ (Single Zero (Five a b c d e)) Empty =>
+      Full (Single (Three a b c) (Three d e z)) Empty
+*)    | Full _ ss r =>
+      match ss in SubStack _ V return Deque (prod V V) -> Deque T with
+        | Single p s =>
+          fun (v:Deque (prod T T)) =>
+            match s with
+              | Zero => Full (Single p (One z)) v
+              | One a => Full (Single p (Two a z)) v
+              | Two a b => Full (Single p (Three a b z)) v
+              | Three a b c => Full (Single p (Four a b c z)) v
+              | Four a b c d => Full (Single p (Five a b c d z)) v
+              | Five a b c d e => x (*
+                match p,v with
+                  | Zero,Empty => Full (Single (Three a b c) (Three d e z)) Empty
+                  | _,_ => x
+                end*)
+            end
+        | Multiple t0 p s r1 => 
+          fun (v:Deque (prod t0 t0)) => 
+            match s with
+              | Zero => x (*Full (Multiple p (One z) r1) v*)
+              | One a => Full (Multiple p (Two a z) r1) v
+              | Two a b => Full (Multiple p (Three a b z) r1) v
+              | Three a b c => Full (Multiple p (Four a b c z) r1) v
+              | Four a b c d => Full (Multiple p (Five a b c d z) r1) v
+              | _ => x
+            end 
+      end r
+  end.
+
+Lemma injectSemiDoes :
+  forall T (x:Deque T) (z:T),
+    regular x ->
+    (app (toListDeque x) (z :: nil)) = toListDeque (injectSemi x z).
+Proof.
+  clear. intros.
+  destruct x.
+  asp.
+  destruct s.
+  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
+  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
+Qed.
+
 Lemma injectSemiIsSemi :
   forall T (x:Deque T) (z:T),
     regular x ->
@@ -780,6 +781,114 @@ Proof.
   dequeCase SSCase x;
   sisp;
   subStackCase SSSCase s0; asp.
+Qed.
+
+Definition popSemi T U (ss:SubStack T U)
+  : Deque (prod U U) -> option (prod T (Deque T)) :=
+  match ss in SubStack _ V return Deque (prod V V) -> option (prod T (Deque T)) with
+    | Single p s =>
+      fun (v:Deque (prod T T)) =>
+        match p with
+          | Zero => (* v is Empty *)
+            match s with
+              | One a => Some (a,Empty)
+              | Two a b => Some (a,Full (Single (One b) Zero) Empty)
+              | Three a b c => Some (a,Full (Single (Two b c) Zero) Empty)
+              | Four a b c d => Some (a,Full (Single (Three b c d) Zero) Empty)
+              | Five a b c d e => Some (a,Full (Single (Four b c d e) Zero) Empty)
+              | _ => None
+            end
+          | One a => 
+            match s with
+              | Zero => Some (a,Empty)
+              | _ => Some (a,Full (Single Zero s) v)
+            end
+          | Two a b => Some (a,Full (Single (One b) s) v)
+          | Three a b c => Some (a,Full (Single (Two b c) s) v)
+          | Four a b c d => Some (a,Full (Single (Three b c d) s) v)
+          | Five a b c d e => None 
+                  (*Some (a,Full (Single (Four b c d e) s) v) *)
+        end
+    | Multiple t0 p s r1 => 
+      fun (v:Deque (prod t0 t0)) => 
+        match p with
+          | One a => Some (a,Full (Multiple Zero s r1) v)
+          | Two a b => Some (a,Full (Multiple (One b) s r1) v)
+          | Three a b c => Some (a,Full (Multiple (Two b c) s r1) v)
+          | Four a b c d => Some (a,Full (Multiple (Three b c d) s r1) v)
+          | _ => None 
+        end
+  end.
+
+Lemma popSemiTotal :
+  forall T U (ss:SubStack T U) (v:Deque (prod U U)),
+    let x := Full ss v in
+      regular x ->
+      None = popSemi ss v ->
+      False.
+Proof.
+  clear. intros. unfold x in *. clear x. 
+  subStackCase Case ss; simpl in *;
+  bufferCase SCase b; simpl in *;
+  bufferCase SSCase b0; simpl in *;
+    dequeCase SSSCase v; sisp.
+Qed.
+
+
+Lemma popSemiDoes :
+  forall T U (ss:SubStack T U) (v:Deque (prod U U)),
+    let x := Full ss v in
+      regular x ->
+      match popSemi ss v with
+        | None => False
+        | Some (hed,tyl) => hed :: toListDeque tyl = toListDeque x
+      end.
+Proof.
+  clear. intros. unfold x in *. clear x.
+  cutThis (popSemi ss v).
+  destruct p.
+  subStackCase Case ss; simpl in *;
+  bufferCase SCase b; simpl in *;
+  bufferCase SSCase b0; simpl in *;
+    dequeCase SSSCase v; sisp.
+  eapply popSemiTotal; eauto.
+Qed.
+  
+Lemma semiRegEmpty : forall s, semiRegular (@Empty s).
+Proof.
+  intros.
+  unfold semiRegular.
+  unfold topDequeColors; asp.
+Qed.
+Hint Resolve semiRegEmpty.
+
+
+Lemma regEmpty : forall s, regular (@Empty s).
+Proof.
+  intros.
+  unfold regular. sisp.
+Qed.
+Hint Resolve regEmpty.
+
+Lemma popSemiIsSemi :
+  forall T U (ss:SubStack T U) (v:Deque (prod U U)),
+    let x := Full ss v in
+      regular x ->
+      match popSemi ss v with
+        | None => False
+        | Some (_,tyl) => semiRegular tyl
+      end.
+Proof.
+  clear. intros. unfold x in *. clear x.
+  cutThis (popSemi ss v).
+  destruct p.
+
+  destruct ss; sisp;
+    destruct b0; sisp;
+      destruct b; sisp; sisp;
+        destruct s; sisp; sisp; sisp.
+
+  eapply popSemiTotal; eauto.
 Qed.
 
 Definition restoreOneYellowBottom

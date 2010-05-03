@@ -6,7 +6,6 @@ Require Export Arith.
 Section Carrier.
 
 Variable N:Type.
-Variable A:Type.
 Variable zero : N.
 Variable succ : N -> N.
 Variable comp : N -> N -> comparison.
@@ -406,6 +405,11 @@ Ltac pisp t := try subst;
   unfold bufferColor in *; unfold not; intros; 
     simpl in *; auto; t;
   match goal with
+    | [H : ?a <> ?a |- _] =>
+      let fname := fresh 
+        in unfold not in H;
+          pose (H (eq_refl _)) as fname;
+            inversion fname; pisp t
     | [H:Red=Yellow |- _] => inversion H;  pisp t
     | [H:Red=Green |- _] => inversion H;  pisp t
     | [H:Yellow=Green |- _] => inversion H;  pisp t
@@ -422,18 +426,20 @@ Ltac pisp t := try subst;
 
     | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t
     | [ |- regular (Full _ _) ] => unfold regular;  pisp t
+    | [ H : regular (Full _ _) |- _] => unfold regular in H;  pisp t
     | [ H : semiRegular (Full _ _) |- _] => unfold semiRegular in H;  pisp t
     | [ |- semiRegular (Full _ _) ] => unfold semiRegular;  pisp t
 
     | [H : ?A \/ ?B |- _] => destruct H;  pisp t
     | [ H : _ /\ _ |- _ ] => destruct H;  pisp t
     | [ |- _ /\ _ ] => split;  pisp t
+    | [ H : prod _ _ |- _] => cutThis H; pisp t
 
     | [ |- context[
       match ?x with
          | Single _ _ => _
          | Multiple _ _ _ _ => _ 
-       end]] => destruct x; pisp t
+       end]] => destruct x
     | [ |- context
       [match ?x with
          | Zero => _
@@ -442,14 +448,21 @@ Ltac pisp t := try subst;
          | Three _ _ _ => _
          | Four _ _ _ _ => _
          | Five _ _ _ _ _ => _
-       end]] => destruct x; pisp t
-    | [ H : prod _ _ |- _] => cutThis H; pisp t
+       end]] => destruct x
+    | [ |- context
+      [match ?x with
+         | Empty => _
+         | Full _ _ _ => _ 
+       end]] => destruct x
+
+
 (*    | [ |- context
       [let (_,_) := ?x in _]] => destruct x; pisp t *)
     | _ => auto
   end.
 
-Ltac asp := progress pisp auto.
+Ltac asp := repeat (progress pisp auto).
+Ltac sisp := pisp auto.
 
 Lemma restoreBottomDoes :
   forall t (pre suf:Buffer t), 
@@ -472,9 +485,377 @@ Proof.
 Qed.
 Hint Resolve restoreBottomPreserves.
 
+Definition lShiftBuffer T (buf: Buffer T) (x:T) : prod T (Buffer T) :=
+  match buf with
+    | Zero => (x,Zero)
+    | One a => (a,One x)
+    | Two a b => (a,Two b x)
+    | Three a b c => (a,Three b c x)
+    | Four a b c d => (a,Four b c d x)
+    | Five a b c d e => (a,Five b c d e x)
+  end.
+
+
+Definition lShiftBottom T (pre suf:Buffer T) (x:T) 
+  :=
+  let (a,b) := lShiftBuffer suf x in
+    let (c,d) := lShiftBuffer pre a in
+      (c,d,b).
+
+(*
+Definition popPairBuffer T (x:Buffer T) :=
+  match x with
+    | Two a b => Some ((a,b),Zero)
+    | Three a b c => Some ((a,b),One c)
+    | Four a b c d => Some ((a,b),Two c d)
+    | Five a b c d e => Some ((a,b),Three c d e)
+    | _ => None
+  end.
+
+Definition injectPairBuffer T (x:Buffer T) (ab:prod T T) :=
+  let (a,b) := ab in
+    match x with
+      | Zero => Some (Two a b)
+      | One z => Some (Three z a b)
+      | Two y z => Some (Four y z a b)
+      | Three x y z => Some (Five x y z a b)
+      | _ => None
+    end.
+*)
+
+(*
+BUG:
+Definition cast A B (p:A = B) T (x:T A) : T B.
+intros.
+*)
+
+Definition cast (A B:Type) (p:A = B) (T:Type -> Type) (x:T A) : T B.
+intros. subst. assumption.
+Defined.
+
+Section Bug.
+
+Inductive Stack t : Type -> Type :=
+  SZ : t -> Stack t t
+| SS : forall u, t -> Stack (prod t t) u -> Stack t u.
+
+Inductive Nest t :=
+  Nil
+| Cons : forall u, Stack t u -> Nest (prod u u) -> Nest t.
+
+
+Definition same a (x:Nest a) : Nest a :=
+  match x with
+    | Nil => Nil _
+    | Cons _ x y => Cons x y
+  end.
+
+Definition replaceTop a (z:Nest a) (v:a) : Nest a.
+clear.
+intros.
+destruct z.
+apply Nil.
+destruct s.
+eapply Cons.
+apply SZ.
+apply v.
+assumption.
+eapply Cons.
+eapply SS.
+apply v. apply s. assumption.
+Defined.
+
+Print replaceTop.
+
+(*
+ :=
+  match z with
+    | Nil => Nil a
+    | Cons U x y => 
+      match x with
+        | SZ q => Cons (SZ v) y
+        | SS V j k => z
+      end
+  end.
+
+Definition replaceTop a (z:Nest a) (v:a) : Nest a :=
+  match z with
+    | Nil => Nil a
+    | Cons U x y => 
+      match x with
+        | SZ q => Cons (SZ v) y
+        | SS V j k => z
+      end
+  end.
+
+
+Definition replaceTop a (q:Nest a) (v:a) : Nest a.
+refine (fun a (q:Nest a) v =>
+  match q as q' with
+    | Cons U x y => 
+      (match x as x' in Stack _ U return U=a -> Nest a with
+        | SZ z => fun p => Cons (SZ v) (cast p _ y)
+        | SS _ _ _ => fun _ => q
+      end) (@eq_refl _ _)
+    | _ => q
+  end).
+
+Require Import Coq.Logic.JMeq.
+Require Import Program.
+
+Program Definition replaceTop a (x:Nest a) (v:a) : Nest a :=
+  match x with
+    | Nil => Nil a
+    | Cons U x y => 
+      match x with
+        | SZ z => Cons (SZ v) y
+        | SS V j k => x
+      end
+  end.
+
+
+
+Definition replaceTop a (x:Nest a) (v:a) : Nest a :=
+  match x with
+    | Nil => Nil _
+    | Cons _ x y => 
+      match x with
+        | SZ z => Cons (SZ v) y
+        | _ => x
+      end
+    | _ => x
+  end.
+*)
+
+End Bug.
+
+Print replaceTop.
+
+Definition injectSemiT T (x:Deque T) (z:T) : Deque T.
+clear.
+intros.
+destruct x. apply Empty.
+destruct s.
+destruct b0. eapply Full. apply Single. exact b. apply One. exact z. exact x.
+apply Empty.
+apply Empty.
+apply Empty.
+apply Empty.
+apply Empty.
+apply Empty.
+Defined.
+
+Print injectSemiT.
+
+Definition injectSemiT2 := 
+fun (T : Type) (x : Deque T) (z : T) =>
+match x with
+| Empty => Empty
+| Full _ s x0 =>
+    match s in (SubStack _ T0) return (Deque (T0 * T0) -> Deque T) with
+    | Single b b0 =>
+        fun x1 : Deque (T * T) =>
+        match b0 with
+        | Zero => Full (Single b (One z)) x1
+        | One _ => Empty
+        | Two _ _ => Empty
+        | Three _ _ _ => Empty
+        | Four _ _ _ _ => Empty
+        | Five _ _ _ _ _ => Empty
+        end
+    | Multiple t0 p s r1 => 
+      fun v : Deque (t0 * t0) =>
+        match s with
+          | Zero => Full (Multiple p (One z) r1) v
+          | One a => Full (Multiple p (Two a z) r1) v
+          | Two a b => Full (Multiple p (Three a b z) r1) v
+          | Three a b c => Full (Multiple p (Four a b c z) r1) v
+          | Four a b c d => Full (Multiple p (Five a b c d z) r1) v
+          | _ => x
+        end
+    end x0
+end.
+
+Definition injectSemi T (x:Deque T) (z:T) : Deque T :=
+  match x with
+    | Empty => Full (Single (One z) Zero) Empty
+(*    | Full _ (Single Zero (Five a b c d e)) Empty =>
+      Full (Single (Three a b c) (Three d e z)) Empty
+*)    | Full _ ss r =>
+      match ss in SubStack _ V return Deque (prod V V) -> Deque T with
+        | Single p s =>
+          fun (v:Deque (prod T T)) =>
+            match s with
+              | Zero => Full (Single p (One z)) v
+              | One a => Full (Single p (Two a z)) v
+              | Two a b => Full (Single p (Three a b z)) v
+              | Three a b c => Full (Single p (Four a b c z)) v
+              | Four a b c d => Full (Single p (Five a b c d z)) v
+              | Five a b c d e => 
+                match p,v with
+                  | Zero,Empty => Full (Single (Three a b c) (Three d e z)) Empty
+                  | _,_ => x
+                end
+            end
+        | Multiple t0 p s r1 => 
+          fun (v:Deque (prod t0 t0)) => 
+            match s with
+              | Zero => Full (Multiple p (One z) r1) v
+              | One a => Full (Multiple p (Two a z) r1) v
+              | Two a b => Full (Multiple p (Three a b z) r1) v
+              | Three a b c => Full (Multiple p (Four a b c z) r1) v
+              | Four a b c d => Full (Multiple p (Five a b c d z) r1) v
+              | _ => x
+            end 
+      end r
+  end.
+
+Lemma unzipMixApp :
+  forall T (x:list (prod T T)) (y:list T) (z:list T),
+    (unzipMix x y) ++ z = unzipMix x (y ++ z).
+Proof.
+  clear; intros.
+  induction x; asp.
+  rewrite IHx; auto.
+Qed.
+Hint Rewrite unzipMixApp : anydb.
+
+Lemma injectSemiDoes :
+  forall T (x:Deque T) (z:T),
+    regular x ->
+    (toListDeque x ++ (z :: nil)) = toListDeque (injectSemi x z).
+Proof.
+  clear. intros.
+  destruct x.
+  asp.
+  destruct s.
+  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
+  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
+Qed.
+
+Require Import caseTactic.
+
+Ltac bufferCase c x :=
+  let xx := fresh 
+    in remember x as xx; 
+      destruct xx; 
+        [c "Zero"
+          |c "One"
+          |c "Two"
+          |c "Three"
+          |c "Four"
+          |c "Five"].
+
+Ltac dequeCase c x :=
+  let xx := fresh 
+    in remember x as xx; 
+      destruct xx; 
+        [c "Empty"
+          |c "Full"].
+
+Ltac subStackCase c x :=
+  let xx := fresh 
+    in remember x as xx; 
+      destruct xx; 
+        [c "Single"
+          |c "Multiple"].
+
+Lemma injectSemiIsSemi :
+  forall T (x:Deque T) (z:T),
+    regular x ->
+    semiRegular (injectSemi x z).
+Proof.
+  clear. intros.
+  destruct x.
+  asp.
+  destruct s.
+  bufferCase Case b;
+  bufferCase SCase b0; 
+  dequeCase SSCase x;
+  sisp;
+  subStackCase SSSCase s; asp.
+
+  bufferCase Case b;
+  bufferCase SCase b0; 
+  dequeCase SSCase x;
+  sisp;
+  subStackCase SSSCase s0; asp.
+Qed.
+
 Definition restoreOneYellowBottom
   T (p1 s1:Buffer T) (p2 s2:Buffer (prod T T)) : option (Deque T) :=
-  match p1,p2,s2,s1 with
+  match p1,s1 with
+    | Zero,Five a b c d e => 
+      Some (
+        match lShiftBottom p2 s2 (a,b) with
+          | ((p,q),r,s) =>
+            Full 
+            (Multiple (Two p q) (Three c d e)
+              (Single r s)) 
+            Empty
+        end)
+    | One a,Five b c d e f => 
+      Some (
+        match lShiftBottom p2 s2 (b,c) with
+          | ((p,q),r,s) =>
+            Full 
+            (Multiple (Three a p q) (Three d e f)
+              (Single r s)) 
+            Empty
+        end)
+    | Two a b,Five c d e f g => 
+      Some (
+        match lShiftBottom p2 s2 (c,d) with
+          | ((p,q),r,s) =>
+            Full 
+            (Multiple (Four a b p q) (Three e f g)
+              (Single r s)) 
+            Empty
+        end)(*
+    | Three a b c,Five d e f g h => 
+      Some (
+        match lShiftBottom p2 s2 (c,d) with
+          | ((p,q),r,s) =>
+            Full 
+            (Multiple (Four a b p q) (Three e f g)
+              (Single r s)) 
+            Empty
+        end)
+*)
+    | _,_ => None 
+  end.
+
+Print restoreOneYellowBottom.
+
+(*
+      Full (Single (Two a b) (Three c d e)) Empty
+    | One a,Five b c d e f => 
+      Full (Single (Three a b c) (Three d e f)) Empty
+    | Two a b,Five c d e f g => 
+      Full (Single (Three a b c) (Four d e f g)) Empty
+    | Three a b c,Five d e f g h => 
+      Full (Single (Four a b c d) (Four e f g h)) Empty
+    | Four a b c d,Five e f g h i => 
+      Full (Multiple (Four a b c d) (Three g h i) 
+        (Single Zero (One (e,f)))) Empty
+    | Five a b c d e,Five f g h i j => 
+      Full (Multiple (Three a b c) (Three h i j) 
+        (Single (One (d,e)) (One (f,g)))) Empty
+      
+    | Five a b c d e, Zero => 
+      Full (Single (Two a b) (Three c d e)) Empty
+    | Five a b c d e, One f => 
+      Full (Single (Three a b c) (Three d e f)) Empty
+    | Five a b c d e, Two f g => 
+      Full (Single (Three a b c) (Four d e f g)) Empty
+    | Five a b c d e, Three f g h => 
+      Full (Single (Four a b c d) (Four e f g h)) Empty
+    | Five a b c d e, Four f g h i => 
+      Full (Multiple (Four a b c d) (Three g h i) 
+        (Single Zero (One (e,f)))) Empty
+
+
+
     | Zero,Zero,One (a,b),Five c d e f g => 
       Some (Full (Single (Three a b c) (Four d e f g)) Empty)
     | Zero,Zero,Four (a,b) cd ef gh,Five i j k l m => 
@@ -521,7 +902,7 @@ Definition restoreOneYellowBottom
 
     |_,_,_,_ => None
   end.
-
+*)
 Lemma restoreOneYellowBottomDoes :
   forall t (p1 s1:Buffer t) p2 s2,
     semiRegular (Full (Multiple p1 s1 (Single p2 s2)) Empty) ->
@@ -531,7 +912,8 @@ Lemma restoreOneYellowBottomDoes :
     end.
 Proof.
   intros.
-  destruct p1; asp.
+  destruct p1; destruct s1; asp;
+    destruct p2; destruct s2; asp.
 Qed.
 
 Lemma restoreOneYellowBottomPreserves :
@@ -544,7 +926,8 @@ Lemma restoreOneYellowBottomPreserves :
     end.
 Proof.
   intros.
-  destruct p1; asp.
+  destruct p1; destruct s1; asp;
+    destruct p2; destruct s2; asp.
 Qed.
 
 

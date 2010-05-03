@@ -401,68 +401,90 @@ Ltac cutThis x :=
   let xx := fresh 
     in remember x as xx; destruct xx.
 
-Ltac pisp t := try subst;
-  unfold bufferColor in *; unfold not; intros; 
-    simpl in *; auto; t;
-  match goal with
-    | [H : ?a <> ?a |- _] =>
-      let fname := fresh 
-        in abstract (unfold not in H;
-          pose (H (eq_refl _)) as fname;
-            inversion fname)
-    | [H:Red=Yellow |- _] => abstract (inversion H)
-    | [H:Red=Green |- _] => abstract (inversion H)
-    | [H:Yellow=Green |- _] => abstract (inversion H)
-    | [H:Yellow=Red |- _] => abstract (inversion H)
-    | [H:Green=Red |- _] => abstract (inversion H)
-    | [H:Green=Yellow |- _] => abstract (inversion H)
-    | [ H : true = false |- _] => abstract (inversion H)
-    | [ H : None = Some ?a |- _] => abstract (inversion H)
-    | [ H : Some ?a = None |- _] => abstract (inversion H)
-    | [ H : False |- _] => abstract (inversion H)
+Ltac pisp t := 
+      try subst;
+        unfold bufferColor in *; unfold not; intros; 
+          simpl in *; auto; t;
+   match goal with
+     | [H : ?a <> ?a |- _] =>
+       let fname := fresh 
+         in abstract (unfold not in H;
+           pose (H (eq_refl _)) as fname;
+             inversion fname)
+     | [H:Red=Yellow |- _] => abstract (inversion H)
+     | [H:Red=Green |- _] => abstract (inversion H)
+     | [H:Yellow=Green |- _] => abstract (inversion H)
+     | [H:Yellow=Red |- _] => abstract (inversion H)
+     | [H:Green=Red |- _] => abstract (inversion H)
+     | [H:Green=Yellow |- _] => abstract (inversion H)
+     | [ H : true = false |- _] => abstract (inversion H)
+     | [ H : None = Some ?a |- _] => abstract (inversion H)
+     | [ H : Some ?a = None |- _] => abstract (inversion H)
+     | [ H : False |- _] => abstract (inversion H)
 (*
-    | [ H : True |- _] => clear H; pisp t
-    | [ H : ?a = ?a |- _] => clear H;  pisp t
+   | [ H : True |- _] => clear H; pisp t
+   | [ H : ?a = ?a |- _] => clear H;  pisp t
+   *)
+     | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t 
+
+
+     | [ |- regular (Full _ _) ] => unfold regular;  pisp t 
+     | [ H : regular (Full _ _) |- _] => unfold regular in H;  pisp t 
+     | [ H : semiRegular (Full _ _) |- _] => unfold semiRegular in H;  pisp t 
+     | [ |- semiRegular (Full _ _) ] => unfold semiRegular;  pisp t 
+
+(*
+     | [ |- context[regular (Full _ _)] ] => unfold regular;  pisp t 
+     | [ H : context[regular (Full _ _)] |- _] => unfold regular in H;  pisp t 
+     | [ H : context[semiRegular (Full _ _)] |- _] => unfold semiRegular in H;  pisp t 
+     | [ |- context[semiRegular (Full _ _)] ] => unfold semiRegular;  pisp t 
 *)
-    | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t
-    | [ |- regular (Full _ _) ] => unfold regular;  pisp t
-    | [ H : regular (Full _ _) |- _] => unfold regular in H;  pisp t
-    | [ H : semiRegular (Full _ _) |- _] => unfold semiRegular in H;  pisp t
-    | [ |- semiRegular (Full _ _) ] => unfold semiRegular;  pisp t
+       
+(*     | [H : ?A \/ ?B |- _] => destruct H;  pisp t *)
+     | [ H : _ /\ _ |- _ ] => destruct H;  pisp t 
+     | [ |- _ /\ _ ] => split;  pisp t 
+     | [ H : prod _ _ |- _] => cutThis H; pisp t 
+       
+     | [ H : _ = Red |- _] => try (rewrite H in *; pisp t)
+     | [ H : _ = Yellow |- _] => try (rewrite H in *; pisp t)
+     | [ H : _ = Green |- _] => try (rewrite H in *; pisp t)
+     | [ H : Red = _ |- _] => try (rewrite <- H in *; pisp t)
+     | [ H : Yellow = _ |- _] => try (rewrite <- H in *; pisp t)
+     | [ H : Green = _ |- _] => try (rewrite <- H in *; pisp t)
 
-    | [H : ?A \/ ?B |- _] => destruct H;  pisp t
-    | [ H : _ /\ _ |- _ ] => destruct H;  pisp t
-    | [ |- _ /\ _ ] => split;  pisp t
-    | [ H : prod _ _ |- _] => cutThis H; pisp t
-
-    | [ |- context[
-      match ?x with
+     | [ |- context[
+       match ?x with
          | Single _ _ => _
          | Multiple _ _ _ _ => _ 
-       end]] => destruct x
-    | [ |- context
-      [match ?x with
-         | Zero => _
-         | One _ => _ 
-         | Two _ _ => _
-         | Three _ _ _ => _
-         | Four _ _ _ _ => _
-         | Five _ _ _ _ _ => _
-       end]] => destruct x
-    | [ |- context
-      [match ?x with
-         | Empty => _
-         | Full _ _ _ => _ 
-       end]] => destruct x
-
-
+       end]] => cutThis x
+     | [ |- context
+       [match ?x with
+          | Zero => _
+          | One _ => _ 
+          | Two _ _ => _
+          | Three _ _ _ => _
+          | Four _ _ _ _ => _
+          | Five _ _ _ _ _ => _
+        end]] => cutThis x
+     | [ |- context
+       [match ?x with
+          | Empty => _
+          | Full _ _ _ => _ 
+        end]] => cutThis x
+     | [ |- context
+       [match ?x with
+          | Red => _
+          | Yellow => _
+          | Green => _
+        end]] => cutThis x
+     
 (*    | [ |- context
-      [let (_,_) := ?x in _]] => destruct x; pisp t *)
-    | _ => auto
-  end.
+   [let (_,_) := ?x in _]] => destruct x; pisp t *)
+     | _ => auto
+   end.
 
-Ltac asp := repeat (progress pisp auto).
-Ltac sisp := pisp auto.
+Ltac asp := repeat (progress pisp auto ).
+Ltac sisp := pisp auto .
 
 Lemma restoreBottomDoes :
   forall t (pre suf:Buffer t), 
@@ -891,6 +913,43 @@ Proof.
   eapply popSemiTotal; eauto.
 Qed.
 
+Definition bufferDequeWrap T (pre suf:Buffer T) (xs:Deque (prod T T)) :=
+  match xs with
+    | Empty => Full (Single pre suf) Empty
+    | Full _ ss r =>
+      match r with
+        | Empty =>
+          match bottomSubStackColor ss with
+            | Yellow => Full (Multiple pre suf ss) Empty
+            | _ => Full (Single pre suf) (Full ss Empty)
+          end
+        | _ =>
+          match topSubStackColor ss with
+            | Yellow => Full (Multiple pre suf ss) r
+            | _ => Full (Single pre suf) (Full ss r)
+          end
+      end
+  end.
+Hint Unfold bufferDequeWrap.
+
+Lemma wrapSemi :
+  forall T (xs:Deque (T*T)), 
+    semiRegular xs ->
+    forall pre suf,
+      topSubStackColor (Single pre suf) <> Red ->
+      semiRegular (bufferDequeWrap pre suf xs).
+Proof.
+  clear; intros.
+  bufferCase Case pre; simpl in *;
+    bufferCase SCase suf; simpl in *;
+      unfold bufferDequeWrap; simpl in *; auto;
+        dequeCase SSCase xs; simpl in *; auto;
+          sisp; sisp; sisp;
+          destruct s; sisp.
+Qed.
+    
+
+
 Definition restoreOneYellowBottom
   T (p1 s1:Buffer T) (p2 s2:Buffer (prod T T)) : option (Deque T) :=
   match p1,s1 with
@@ -920,14 +979,14 @@ Definition restoreOneYellowBottom
             (Multiple (Four a b p q) (Three e f g)
               (Single r s)) 
             Empty
-        end)(*
+        end)
     | Three a b c,Five d e f g h => 
       Some (
         match lShiftBottom p2 s2 (c,d) with
           | ((p,q),r,s) =>
             Full 
-            (Multiple (Four a b p q) (Three e f g)
-              (Single r s)) 
+            (Multiple (Four a b c) (Three f g h)
+              (injectSemi (Full (Single p2 s2)Single r s)) 
             Empty
         end)
 *)
@@ -935,7 +994,7 @@ Definition restoreOneYellowBottom
   end.
 
 Print restoreOneYellowBottom.
-
+*)
 (*
       Full (Single (Two a b) (Three c d e)) Empty
     | One a,Five b c d e f => 
@@ -1012,6 +1071,7 @@ Print restoreOneYellowBottom.
     |_,_,_,_ => None
   end.
 *)
+(*
 Lemma restoreOneYellowBottomDoes :
   forall t (p1 s1:Buffer t) p2 s2,
     semiRegular (Full (Multiple p1 s1 (Single p2 s2)) Empty) ->
@@ -1024,7 +1084,8 @@ Proof.
   destruct p1; destruct s1; asp;
     destruct p2; destruct s2; asp.
 Qed.
-
+*)
+(*
 Lemma restoreOneYellowBottomPreserves :
   forall t (p1 s1:Buffer t) p2 s2,
     let x := (Full (Multiple p1 s1 (Single p2 s2)) Empty) in
@@ -1038,60 +1099,7 @@ Proof.
   destruct p1; destruct s1; asp;
     destruct p2; destruct s2; asp.
 Qed.
-
-
-Lemma restoreBottomPreserves :
-  forall t (pre suf:Buffer t), 
-    let x := (Full (Single pre suf) Empty) in
-      semiRegular x ->
-      toListDeque (restoreBottom pre suf) = toListDeque x.
-Proof.
-  intros.
-  destruct pre; asp.
-Qed.
-Hint Resolve restoreBottomPreserves.
-
-
-(Four a b c d) (Three g h i) 
-        (Single Zero (One (e,f)))) Empty
-    | Zero,One a,Zero,Five b c d e f =>
-      Full (Single (Three a b c) (Three d e f)) Empty
-    | Zero,One a,One b,Five c d e f g =>
-      Full (Single (Three a b c) (Four d e f g)) Empty
-    | Zero,One a,One b,Five c d e f g =>
-      Full (Single (Three a b c) (Four d e f g)) Empty
-
-
-
-
-
-    | One a,Five b c d e f => 
-      Full (Single (Three a b c) (Three d e f)) Empty
-    | Two a b,Five c d e f g => 
-      Full (Single (Three a b c) (Four d e f g)) Empty
-    | Three a b c,Five d e f g h => 
-      Full (Single (Four a b c d) (Four e f g h)) Empty
-    | Four a b c d,Five e f g h i => 
-      Full (Multiple (Four a b c d) (Three g h i) 
-        (Single Zero (One (e,f)))) Empty
-    | Five a b c d e,Five f g h i j => 
-      Full (Multiple (Three a b c) (Three h i j) 
-        (Single (One (d,e)) (One (f,g)))) Empty
-      
-    | Five a b c d e, Zero => 
-      Full (Single (Two a b) (Three c d e)) Empty
-    | Five a b c d e, One f => 
-      Full (Single (Three a b c) (Three d e f)) Empty
-    | Five a b c d e, Two f g => 
-      Full (Single (Three a b c) (Four d e f g)) Empty
-    | Five a b c d e, Three f g h => 
-      Full (Single (Four a b c d) (Four e f g h)) Empty
-    | Five a b c d e, Four f g h i => 
-      Full (Multiple (Four a b c d) (Three g h i) 
-        (Single Zero (One (e,f)))) Empty
-      
-    | _,_ => Full (Single pre suf) Empty
-end
+*)
 
 Definition restore s (x:Deque s) : option (Deque s) :=
   match x with
@@ -1148,6 +1156,61 @@ Proof.
   apply restoreBottomPreserves; auto.
   destruct s0; auto.
 Qed.
+
+
+
+Lemma restoreBottomPreserves :
+  forall t (pre suf:Buffer t), 
+    let x := (Full (Single pre suf) Empty) in
+      semiRegular x ->
+      toListDeque (restoreBottom pre suf) = toListDeque x.
+Proof.
+  intros.
+  destruct pre; asp.
+Qed.
+Hint Resolve restoreBottomPreserves.
+
+
+(Four a b c d) (Three g h i) 
+        (Single Zero (One (e,f)))) Empty
+    | Zero,One a,Zero,Five b c d e f =>
+      Full (Single (Three a b c) (Three d e f)) Empty
+    | Zero,One a,One b,Five c d e f g =>
+      Full (Single (Three a b c) (Four d e f g)) Empty
+    | Zero,One a,One b,Five c d e f g =>
+      Full (Single (Three a b c) (Four d e f g)) Empty
+
+
+
+
+
+    | One a,Five b c d e f => 
+      Full (Single (Three a b c) (Three d e f)) Empty
+    | Two a b,Five c d e f g => 
+      Full (Single (Three a b c) (Four d e f g)) Empty
+    | Three a b c,Five d e f g h => 
+      Full (Single (Four a b c d) (Four e f g h)) Empty
+    | Four a b c d,Five e f g h i => 
+      Full (Multiple (Four a b c d) (Three g h i) 
+        (Single Zero (One (e,f)))) Empty
+    | Five a b c d e,Five f g h i j => 
+      Full (Multiple (Three a b c) (Three h i j) 
+        (Single (One (d,e)) (One (f,g)))) Empty
+      
+    | Five a b c d e, Zero => 
+      Full (Single (Two a b) (Three c d e)) Empty
+    | Five a b c d e, One f => 
+      Full (Single (Three a b c) (Three d e f)) Empty
+    | Five a b c d e, Two f g => 
+      Full (Single (Three a b c) (Four d e f g)) Empty
+    | Five a b c d e, Three f g h => 
+      Full (Single (Four a b c d) (Four e f g h)) Empty
+    | Five a b c d e, Four f g h i => 
+      Full (Multiple (Four a b c d) (Three g h i) 
+        (Single Zero (One (e,f)))) Empty
+      
+    | _,_ => Full (Single pre suf) Empty
+end
 
 
 

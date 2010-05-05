@@ -82,7 +82,7 @@ Definition toListBufferC t (x:Buffer t) r :=
     | Four a b c d => a::b::c::d::r
     | Five a b c d e => a::b::c::d::e::r
   end.
-
+Hint Unfold toListBufferC.
 (*
 Definition toListPairBufferC t (x:Buffer (prod t t)) r :=
   match x with
@@ -401,9 +401,15 @@ Ltac cutThis x :=
   let xx := fresh 
     in remember x as xx; destruct xx.
 
+Ltac equate x y :=
+  let H := fresh "H" in
+    assert (H : x = y); [ reflexivity | clear H ].
+
 Ltac pisp t := 
       try subst;
-        unfold bufferColor in *; unfold not; intros; 
+        unfold bufferColor in *;
+          unfold toListBufferC in *;
+    unfold not; intros; 
           simpl in *; auto; t;
    match goal with
      | [H : ?a <> ?a |- _] =>
@@ -445,19 +451,29 @@ Ltac pisp t :=
      | [ |- _ /\ _ ] => split;  pisp t 
      | [ H : prod _ _ |- _] => cutThis H; pisp t 
        
-     | [ H : _ = Red |- _] => try (rewrite H in *; pisp t)
-     | [ H : _ = Yellow |- _] => try (rewrite H in *; pisp t)
-     | [ H : _ = Green |- _] => try (rewrite H in *; pisp t)
-     | [ H : Red = _ |- _] => try (rewrite <- H in *; pisp t)
-     | [ H : Yellow = _ |- _] => try (rewrite <- H in *; pisp t)
-     | [ H : Green = _ |- _] => try (rewrite <- H in *; pisp t)
+     | [ H : _ = Red |- _] => rewrite H in *; pisp t
+     | [ H : _ = Yellow |- _] => rewrite H in *; pisp t
+     | [ H : _ = Green |- _] => rewrite H in *; pisp t
+     | [ H : Red = _ |- _] => rewrite <- H in *; pisp t
+     | [ H : Yellow = _ |- _] => rewrite <- H in *; pisp t
+     | [ H : Green = _ |- _] => rewrite <- H in *; pisp t
 
-     | [ |- context[
-       match ?x with
-         | Single _ _ => _
-         | Multiple _ _ _ _ => _ 
-       end]] => cutThis x
-     | [ |- context
+(*     | [ H :*)
+
+     | [ X : Color |- context
+       [match ?x with
+          | Red => _
+          | Yellow => _
+          | Green => _
+        end]] => equate X x; destruct x
+     | [ X : Color ,_: context
+       [match ?x with
+          | Red => _
+          | Yellow => _
+          | Green => _
+        end]|-_] => equate X x; destruct x
+
+     | [ X: Buffer _ |- context
        [match ?x with
           | Zero => _
           | One _ => _ 
@@ -465,18 +481,66 @@ Ltac pisp t :=
           | Three _ _ _ => _
           | Four _ _ _ _ => _
           | Five _ _ _ _ _ => _
-        end]] => cutThis x
-     | [ |- context
+        end]] => equate X x; destruct x
+     | [ X: Buffer _ ,_: context
+       [match ?x with
+          | Zero => _
+          | One _ => _ 
+          | Two _ _ => _
+          | Three _ _ _ => _
+          | Four _ _ _ _ => _
+          | Five _ _ _ _ _ => _
+        end]|-_] => equate X x; destruct x
+
+     | [ X : SubStack _ _
+       |- context[
+         match ?x with
+           | Single _ _ => _
+           | Multiple _ _ _ _ => _ 
+         end]] => equate X x; destruct x
+     | [ X : SubStack _ _
+       |- context[
+         match ?x in SubStack _ _ return _ with
+           | Single _ _ => _
+           | Multiple _ _ _ _ => _ 
+         end]] => equate X x; destruct x
+     | [ X: Deque _ |- context
        [match ?x with
           | Empty => _
           | Full _ _ _ => _ 
-        end]] => cutThis x
-     | [ |- context
-       [match ?x with
+        end]] => equate X x; destruct x
+(*     | [ |- context
+       [match topSubStackColor ?x with
           | Red => _
           | Yellow => _
           | Green => _
         end]] => cutThis x
+  *)   
+
+     | [ X : SubStack _ _,
+       _ : context[
+         match ?x with
+           | Single _ _ => _
+           | Multiple _ _ _ _ => _ 
+         end] |- _] => equate X x; destruct x
+     | [ X : SubStack _ _
+       ,_: context[
+         match ?x in SubStack _ _ return _ with
+           | Single _ _ => _
+           | Multiple _ _ _ _ => _ 
+         end]|-_] => equate X x; destruct x
+     | [ X: Deque _ ,_: context
+       [match ?x with
+          | Empty => _
+          | Full _ _ _ => _ 
+        end]|-_] => equate X x; destruct x
+(*     | [ |- context
+       [match topSubStackColor ?x with
+          | Red => _
+          | Yellow => _
+          | Green => _
+        end]] => cutThis x
+  *)   
      
 (*    | [ |- context
    [let (_,_) := ?x in _]] => destruct x; pisp t *)
@@ -523,181 +587,6 @@ Definition lShiftBottom T (pre suf:Buffer T) (x:T)
   let (a,b) := lShiftBuffer suf x in
     let (c,d) := lShiftBuffer pre a in
       (c,d,b).
-
-(*
-Definition popPairBuffer T (x:Buffer T) :=
-  match x with
-    | Two a b => Some ((a,b),Zero)
-    | Three a b c => Some ((a,b),One c)
-    | Four a b c d => Some ((a,b),Two c d)
-    | Five a b c d e => Some ((a,b),Three c d e)
-    | _ => None
-  end.
-
-Definition injectPairBuffer T (x:Buffer T) (ab:prod T T) :=
-  let (a,b) := ab in
-    match x with
-      | Zero => Some (Two a b)
-      | One z => Some (Three z a b)
-      | Two y z => Some (Four y z a b)
-      | Three x y z => Some (Five x y z a b)
-      | _ => None
-    end.
-*)
-
-(*
-BUG:
-Definition cast A B (p:A = B) T (x:T A) : T B.
-intros.
-*)
-
-Definition cast (A B:Type) (p:A = B) (T:Type -> Type) (x:T A) : T B.
-intros. subst. assumption.
-Defined.
-
-Section Bug.
-
-Inductive Stack t : Type -> Type :=
-  SZ : t -> Stack t t
-| SS : forall u, t -> Stack (prod t t) u -> Stack t u.
-
-Inductive Nest t :=
-  Nil
-| Cons : forall u, Stack t u -> Nest (prod u u) -> Nest t.
-
-
-Definition same a (x:Nest a) : Nest a :=
-  match x with
-    | Nil => Nil _
-    | Cons _ x y => Cons x y
-  end.
-
-Definition replaceTop a (z:Nest a) (v:a) : Nest a.
-clear.
-intros.
-destruct z.
-apply Nil.
-destruct s.
-eapply Cons.
-apply SZ.
-apply v.
-assumption.
-eapply Cons.
-eapply SS.
-apply v. apply s. assumption.
-Defined.
-
-Print replaceTop.
-
-(*
- :=
-  match z with
-    | Nil => Nil a
-    | Cons U x y => 
-      match x with
-        | SZ q => Cons (SZ v) y
-        | SS V j k => z
-      end
-  end.
-
-Definition replaceTop a (z:Nest a) (v:a) : Nest a :=
-  match z with
-    | Nil => Nil a
-    | Cons U x y => 
-      match x with
-        | SZ q => Cons (SZ v) y
-        | SS V j k => z
-      end
-  end.
-
-
-Definition replaceTop a (q:Nest a) (v:a) : Nest a.
-refine (fun a (q:Nest a) v =>
-  match q as q' with
-    | Cons U x y => 
-      (match x as x' in Stack _ U return U=a -> Nest a with
-        | SZ z => fun p => Cons (SZ v) (cast p _ y)
-        | SS _ _ _ => fun _ => q
-      end) (@eq_refl _ _)
-    | _ => q
-  end).
-
-Require Import Coq.Logic.JMeq.
-Require Import Program.
-
-Program Definition replaceTop a (x:Nest a) (v:a) : Nest a :=
-  match x with
-    | Nil => Nil a
-    | Cons U x y => 
-      match x with
-        | SZ z => Cons (SZ v) y
-        | SS V j k => x
-      end
-  end.
-
-
-
-Definition replaceTop a (x:Nest a) (v:a) : Nest a :=
-  match x with
-    | Nil => Nil _
-    | Cons _ x y => 
-      match x with
-        | SZ z => Cons (SZ v) y
-        | _ => x
-      end
-    | _ => x
-  end.
-*)
-
-End Bug.
-
-Print replaceTop.
-
-Definition injectSemiT T (x:Deque T) (z:T) : Deque T.
-clear.
-intros.
-destruct x. apply Empty.
-destruct s.
-destruct b0. eapply Full. apply Single. exact b. apply One. exact z. exact x.
-apply Empty.
-apply Empty.
-apply Empty.
-apply Empty.
-apply Empty.
-apply Empty.
-Defined.
-
-Print injectSemiT.
-
-Definition injectSemiT2 := 
-fun (T : Type) (x : Deque T) (z : T) =>
-match x with
-| Empty => Empty
-| Full _ s x0 =>
-    match s in (SubStack _ T0) return (Deque (T0 * T0) -> Deque T) with
-    | Single b b0 =>
-        fun x1 : Deque (T * T) =>
-        match b0 with
-        | Zero => Full (Single b (One z)) x1
-        | One _ => Empty
-        | Two _ _ => Empty
-        | Three _ _ _ => Empty
-        | Four _ _ _ _ => Empty
-        | Five _ _ _ _ _ => Empty
-        end
-    | Multiple t0 p s r1 => 
-      fun v : Deque (t0 * t0) =>
-        match s with
-          | Zero => Full (Multiple p (One z) r1) v
-          | One a => Full (Multiple p (Two a z) r1) v
-          | Two a b => Full (Multiple p (Three a b z) r1) v
-          | Three a b c => Full (Multiple p (Four a b c z) r1) v
-          | Four a b c d => Full (Multiple p (Five a b c d z) r1) v
-          | _ => x
-        end
-    end x0
-end.
-
 
 Lemma unzipMixApp :
   forall T (x:list (prod T T)) (y:list T) (z:list T),
@@ -776,11 +665,8 @@ Lemma injectSemiDoes :
     (app (toListDeque x) (z :: nil)) = toListDeque (injectSemi x z).
 Proof.
   clear. intros.
-  destruct x.
-  asp.
-  destruct s.
-  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
-  destruct b0; destruct b; destruct x; asp; autorewrite with anydb; asp.
+  Ltac eqlr := autorewrite with anydb.
+  destruct x; repeat (pisp eqlr).
 Qed.
 
 Lemma injectSemiIsSemi :
@@ -789,20 +675,23 @@ Lemma injectSemiIsSemi :
     semiRegular (injectSemi x z).
 Proof.
   clear. intros.
-  destruct x.
-  asp.
-  destruct s.
-  bufferCase Case b;
-  bufferCase SCase b0; 
-  dequeCase SSCase x;
-  sisp;
-  subStackCase SSSCase s; asp.
-
-  bufferCase Case b;
-  bufferCase SCase b0; 
-  dequeCase SSCase x;
-  sisp;
-  subStackCase SSSCase s0; asp.
+  destruct x; sisp; sisp; sisp; sisp; sisp.
+  destruct s; sisp.
+  destruct s; sisp; sisp; sisp.
+  destruct s; sisp.
+  destruct s; sisp; sisp; sisp.
+  destruct s; sisp.
+  destruct s; sisp; sisp; sisp.
+  destruct s; sisp.
+  destruct s; sisp; sisp; sisp.
+  destruct s0; sisp.
+  destruct s0; sisp; sisp; sisp.
+  destruct s0; sisp.
+  destruct s0; sisp; sisp; sisp.
+  destruct s0; sisp.
+  destruct s0; sisp; sisp; sisp.
+  destruct s0; sisp.
+  destruct s0; sisp; sisp; sisp.
 Qed.
 
 Definition popSemi T U (ss:SubStack T U)
@@ -849,11 +738,8 @@ Lemma popSemiTotal :
       None = popSemi ss v ->
       False.
 Proof.
-  clear. intros. unfold x in *. clear x. 
-  subStackCase Case ss; simpl in *;
-  bufferCase SCase b; simpl in *;
-  bufferCase SSCase b0; simpl in *;
-    dequeCase SSSCase v; sisp.
+  clear. intros. unfold x in *. clear x.
+  destruct ss; asp.
 Qed.
 
 
@@ -868,11 +754,7 @@ Lemma popSemiDoes :
 Proof.
   clear. intros. unfold x in *. clear x.
   cutThis (popSemi ss v).
-  destruct p.
-  subStackCase Case ss; simpl in *;
-  bufferCase SCase b; simpl in *;
-  bufferCase SSCase b0; simpl in *;
-    dequeCase SSSCase v; sisp.
+  destruct ss; asp.
   eapply popSemiTotal; eauto.
 Qed.
   
@@ -903,13 +785,8 @@ Lemma popSemiIsSemi :
 Proof.
   clear. intros. unfold x in *. clear x.
   cutThis (popSemi ss v).
-  destruct p.
-
-  destruct ss; sisp;
-    destruct b0; sisp;
-      destruct b; sisp; sisp;
-        destruct s; sisp; sisp; sisp.
-
+  destruct ss; sisp; sisp; sisp; sisp;
+    destruct s; sisp; sisp; sisp.
   eapply popSemiTotal; eauto.
 Qed.
 
@@ -940,15 +817,40 @@ Lemma wrapSemi :
       semiRegular (bufferDequeWrap pre suf xs).
 Proof.
   clear; intros.
-  bufferCase Case pre; simpl in *;
-    bufferCase SCase suf; simpl in *;
-      unfold bufferDequeWrap; simpl in *; auto;
-        dequeCase SSCase xs; simpl in *; auto;
-          sisp; sisp; sisp;
-          destruct s; sisp.
+  destruct xs; sisp; sisp; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
+  cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
+  cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
 Qed.
-    
-
 
 Definition restoreOneYellowBottom
   T (p1 s1:Buffer T) (p2 s2:Buffer (prod T T)) : option (Deque T) :=
@@ -982,19 +884,11 @@ Definition restoreOneYellowBottom
         end)
     | Three a b c,Five d e f g h => 
       Some (
-        match lShiftBottom p2 s2 (c,d) with
-          | ((p,q),r,s) =>
-            Full 
-            (Multiple (Four a b c) (Three f g h)
-              (injectSemi (Full (Single p2 s2)Single r s)) 
-            Empty
-        end)
-*)
+        bufferDequeWrap (Three a b c) (Three f g h)
+        (injectSemi (Full (Single p2 s2) Empty) (d,e)))
     | _,_ => None 
   end.
 
-Print restoreOneYellowBottom.
-*)
 (*
       Full (Single (Two a b) (Three c d e)) Empty
     | One a,Five b c d e f => 
@@ -1071,7 +965,7 @@ Print restoreOneYellowBottom.
     |_,_,_,_ => None
   end.
 *)
-(*
+
 Lemma restoreOneYellowBottomDoes :
   forall t (p1 s1:Buffer t) p2 s2,
     semiRegular (Full (Multiple p1 s1 (Single p2 s2)) Empty) ->
@@ -1081,11 +975,19 @@ Lemma restoreOneYellowBottomDoes :
     end.
 Proof.
   intros.
-  destruct p1; destruct s1; asp;
-    destruct p2; destruct s2; asp.
+  destruct p1; destruct s1; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  unfold regular.
+  split. apply wrapSemi. 
+  fold (injectSemi (Full (Single p2 s2) Empty) (t3,t4)).
+  apply injectSemiIsSemi. sisp.
+  sisp.
+  destruct s2; sisp;
+    destruct p2; sisp.
 Qed.
-*)
-(*
+
 Lemma restoreOneYellowBottomPreserves :
   forall t (p1 s1:Buffer t) p2 s2,
     let x := (Full (Multiple p1 s1 (Single p2 s2)) Empty) in
@@ -1095,6 +997,26 @@ Lemma restoreOneYellowBottomPreserves :
       | Some v => toListDeque x = toListDeque v
     end.
 Proof.
+  intros.
+  destruct p1; destruct s1; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  destruct p2; destruct s2; sisp.
+  unfold regular.
+  split. apply wrapSemi. 
+  fold (injectSemi (Full (Single p2 s2) Empty) (t3,t4)).
+  apply injectSemiIsSemi. sisp.
+  sisp.
+  destruct s2; sisp;
+    destruct p2; sisp.
   intros.
   destruct p1; destruct s1; asp;
     destruct p2; destruct s2; asp.

@@ -405,12 +405,16 @@ Ltac equate x y :=
   let H := fresh "H" in
     assert (H : x = y); [ reflexivity | clear H ].
 
-Ltac pisp t := 
+Ltac pisp t := auto;
       try subst;
         unfold bufferColor in *;
-          unfold toListBufferC in *;
+          unfold toListBufferC in *; (*
+            try (unfold bottomSubStackColor);
+              try (unfold topSubStackColor); *)
+                unfold regular in *;
+                  unfold semiRegular in *;
     unfold not; intros; 
-          simpl in *; auto; t;
+          simpl in *; auto; t; auto;
    match goal with
      | [H : ?a <> ?a |- _] =>
        let fname := fresh 
@@ -433,12 +437,12 @@ Ltac pisp t :=
    *)
      | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t 
 
-
+(*
      | [ |- regular (Full _ _) ] => unfold regular;  pisp t 
      | [ H : regular (Full _ _) |- _] => unfold regular in H;  pisp t 
      | [ H : semiRegular (Full _ _) |- _] => unfold semiRegular in H;  pisp t 
      | [ |- semiRegular (Full _ _) ] => unfold semiRegular;  pisp t 
-
+*)
 (*
      | [ |- context[regular (Full _ _)] ] => unfold regular;  pisp t 
      | [ H : context[regular (Full _ _)] |- _] => unfold regular in H;  pisp t 
@@ -466,13 +470,21 @@ Ltac pisp t :=
           | Yellow => _
           | Green => _
         end]] => equate X x; destruct x
-     | [ X : Color ,_: context
-       [match ?x with
+
+     | [ X : SubStack _ _ |- context
+       [match topSubStackColor ?x with
           | Red => _
           | Yellow => _
           | Green => _
-        end]|-_] => equate X x; destruct x
+        end]] => equate X x; cutThis (topSubStackColor x)
 
+     | [ X : SubStack _ _ |- context
+       [match bottomSubStackColor ?x with
+          | Red => _
+          | Yellow => _
+          | Green => _
+        end]] => equate X x; cutThis (bottomSubStackColor x)
+  
      | [ X: Buffer _ |- context
        [match ?x with
           | Zero => _
@@ -482,15 +494,6 @@ Ltac pisp t :=
           | Four _ _ _ _ => _
           | Five _ _ _ _ _ => _
         end]] => equate X x; destruct x
-     | [ X: Buffer _ ,_: context
-       [match ?x with
-          | Zero => _
-          | One _ => _ 
-          | Two _ _ => _
-          | Three _ _ _ => _
-          | Four _ _ _ _ => _
-          | Five _ _ _ _ _ => _
-        end]|-_] => equate X x; destruct x
 
      | [ X : SubStack _ _
        |- context[
@@ -517,7 +520,23 @@ Ltac pisp t :=
         end]] => cutThis x
   *)   
 
-     | [ X : SubStack _ _,
+     | [ X : Color ,_: context
+       [match ?x with
+          | Red => _
+          | Yellow => _
+          | Green => _
+        end]|-_] => equate X x; destruct x
+     | [ X: Buffer _ ,_: context
+       [match ?x with
+          | Zero => _
+          | One _ => _ 
+          | Two _ _ => _
+          | Three _ _ _ => _
+          | Four _ _ _ _ => _
+          | Five _ _ _ _ _ => _
+        end]|-_] => equate X x; destruct x
+
+   | [ X : SubStack _ _,
        _ : context[
          match ?x with
            | Single _ _ => _
@@ -675,23 +694,7 @@ Lemma injectSemiIsSemi :
     semiRegular (injectSemi x z).
 Proof.
   clear. intros.
-  destruct x; sisp; sisp; sisp; sisp; sisp.
-  destruct s; sisp.
-  destruct s; sisp; sisp; sisp.
-  destruct s; sisp.
-  destruct s; sisp; sisp; sisp.
-  destruct s; sisp.
-  destruct s; sisp; sisp; sisp.
-  destruct s; sisp.
-  destruct s; sisp; sisp; sisp.
-  destruct s0; sisp.
-  destruct s0; sisp; sisp; sisp.
-  destruct s0; sisp.
-  destruct s0; sisp; sisp; sisp.
-  destruct s0; sisp.
-  destruct s0; sisp; sisp; sisp.
-  destruct s0; sisp.
-  destruct s0; sisp; sisp; sisp.
+  destruct x; asp.
 Qed.
 
 Definition popSemi T U (ss:SubStack T U)
@@ -785,6 +788,29 @@ Lemma popSemiIsSemi :
 Proof.
   clear. intros. unfold x in *. clear x.
   cutThis (popSemi ss v).
+  destruct ss; sisp; sisp; sisp; sisp.
+  sisp.
+  sisp; sisp.
+  sisp.
+  sisp; sisp.
+  sisp.
+  sisp; sisp.
+  sisp.
+  destruct s; sisp; sisp; sisp.
+  sisp; sisp.
+  sisp; sisp.
+  sisp.
+  sisp; sisp.
+  sisp.
+  sisp; sisp; sisp; sisp; sisp; sisp; sisp; sisp.
+  sisp.
+  destruct s; sisp; sisp; sisp.
+  sisp; sisp; sisp; sisp; sisp.
+  sisp.
+  sisp; sisp.
+  sisp.
+  sisp; sisp.
+
   destruct ss; sisp; sisp; sisp; sisp;
     destruct s; sisp; sisp; sisp.
   eapply popSemiTotal; eauto.
@@ -818,6 +844,114 @@ Lemma wrapSemi :
 Proof.
   clear; intros.
   destruct xs; sisp; sisp; sisp.
+  unfold bottomSubStackColor in *.
+  destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp.
+  destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp.
+  destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp.
+  destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp.
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  Unfocus.
+Qed.
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+  abstract (destruct s; simpl in *;
+  destruct b; simpl in *;
+  destruct b0; simpl in *; sisp).
+
+
+ sisp. sisp. sisp. sisp. sisp.
   cutThis (bottomSubStackColor s); sisp. destruct s; sisp.
   cutThis (topSubStackColor s); sisp. destruct s; sisp. destruct s; sisp.
   cutThis (bottomSubStackColor s); sisp. destruct s; sisp.

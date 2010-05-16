@@ -4,6 +4,9 @@
 
 module ThreeDeque where
 
+import Monad
+import Maybe
+
 data Buffer a = B0
               | B1 a
               | B2 a a deriving (Show)
@@ -11,57 +14,85 @@ data Buffer a = B0
 data Tree a = Leaf a
             | Node (Tree a) (Tree a) deriving (Show)
 
-type PB a = (Buffer (Tree a), Buffer (Tree a))
+type PB a = (Buffer (Tree a),Buffer (Tree a))
 
 -- TODO: non-empty substacks
 
-data Deque a = Deque [PB a] [[PB a]] [[[PB a]]] deriving (Show)
+data Deque a = Deque [PB a] [[PB a]] [[[PB a]]] (Maybe (Tree a)) deriving (Show)
 
 toListTree' (Leaf x) r = x:r
 toListTree' (Node x y) r = toListTree' x (toListTree' y r)
 
-toList' (Deque [] [] []) r = r
-toList' (Deque [] [] (x:xs)) r = toList' (Deque [] x xs) r
-toList' (Deque [] (x:xs) ys) r = toList' (Deque x xs ys) r
-toList' (Deque ((B0,B0):xs) ys zs) r = toList' (Deque xs ys zs) r
-toList' (Deque ((B0,B1 x):xs) ys zs) r = toList' (Deque xs ys zs) (toListTree' x r)
-toList' (Deque ((B0,B2 x y):xs) ys zs) r = toList' (Deque xs ys zs) (toListTree' x (toListTree' y r))
-toList' (Deque ((B1 x,y):xs) ys zs) r = toListTree' x (toList' (Deque ((B0,y):xs) ys zs) r)
-toList' (Deque ((B2 x y,z):xs) ys zs) r = toListTree' x (toListTree' y (toList' (Deque ((B0,z):xs) ys zs) r))
+toList' (Deque [] [] [] Nothing) r = r
+toList' (Deque [] [] [] (Just x)) r = toListTree' x r
+toList' (Deque [] [] (x:xs) q) r = toList' (Deque [] x xs q) r
+toList' (Deque [] (x:xs) ys q) r = toList' (Deque x xs ys q) r
+toList' (Deque ((B0,B0):xs) ys zs q) r = toList' (Deque xs ys zs q) r
+toList' (Deque ((B0,B1 x):xs) ys zs q) r = toList' (Deque xs ys zs q) (toListTree' x r)
+toList' (Deque ((B0,B2 x y):xs) ys zs q) r = toList' (Deque xs ys zs q) (toListTree' x (toListTree' y r))
+toList' (Deque ((B1 x,y):xs) ys zs q) r = toListTree' x (toList' (Deque ((B0,y):xs) ys zs q) r)
+toList' (Deque ((B2 x y,z):xs) ys zs q) r = toListTree' x (toListTree' y (toList' (Deque ((B0,z):xs) ys zs q) r))
 
-npush x (Deque [] [] []) = Deque [] [[(B1 x,B0)]] []
-npush x (Deque [] [] ((((B0,z):zs):ys):xs)) = Deque [] (((B1 x,z):zs):ys) xs
-npush x (Deque [] (((B0,z):zs):ys) xs) = Deque ((B1 x,z):zs) ys xs
-npush x (Deque [] [[(B1 y,B0)]] []) = Deque [(B1 x,B1 y)] [] []
-npush x (Deque [] (((B1 y,z):zs):ys) xs) = Deque [] [] ((((B2 x y,z):zs):ys):xs)
-npush x (Deque ((B1 y,z):zs) ys xs) = Deque [] (((B2 x y,z):zs):ys) xs
+npush x (Deque [] [] [] Nothing) = Deque [] [] [] (Just x)
+npush x (Deque [] [] [] (Just y)) = Deque [(B1 x, B1 y)] [] [] Nothing
+npush x (Deque [] [] ((((B0,z):zs):ys):xs) q) = Deque [] (((B1 x,z):zs):ys) xs q
+npush x (Deque [] (((B0,z):zs):ys) xs q) = Deque ((B1 x,z):zs) ys xs q
+npush x (Deque [] [[(B1 y,B0)]] [] q) = Deque [(B1 x,B1 y)] [] [] q
+npush x (Deque [] (((B1 y,z):zs):ys) xs q) = Deque [] [] ((((B2 x y,z):zs):ys):xs) q
+npush x (Deque ((B1 y,z):zs) ys xs q) = Deque [] (((B2 x y,z):zs):ys) xs q
 
-smaller (Deque p [] ((((B2 x y,z):zs):ys):xs)) = 
+{-
+npop (Deque [] [] []) = Nothing
+npop (Deque [] [] ((((B2 x y,z):zs):ys):xs)) = Just (x,Deque [] (((B1 y,z):zs):ys) xs)
+npop (Deque [] (((B2 x y,z):zs):ys) xs) = Just (x,Deque ((B1 y,z):zs) ys xs)
+npop (Deque [] [[(B1 x,B2 y z)]] []) = Just (x,Deque [(B1 y,B1 z)] [] [])
+npop (Deque [] (((B1 y,z):zs):ys) xs) = Just (y,Deque [] [] ((((B0,z):zs):ys):xs))
+npop (Deque ((B1 y,z):zs) ys xs) = Just(y,Deque [] (((B0,z):zs):ys) xs)
+-}
+
+
+smaller (Deque p [] ((((B2 x y,z):zs):ys):xs) q) = 
+    let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
+    in Deque p [] ((((B0,z):a):b):c) q'
+smaller (Deque p [((B1 x,z):zs)] xs q) = 
+    let Deque [] [] c q' = smaller (Deque [] [] xs q)
+    in Deque p [((B1 x,z):zs)] c q'
+smaller (Deque p (((B1 x,z):zs):(y:ys)) xs q) = 
+    let Deque [] b c q' = smaller (Deque [] (y:ys) xs q)
+    in Deque p (((B1 x,z):zs):b) c q'
+smaller (Deque p (((B2 x y,z):zs):ys) xs q) = 
+    let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
+    in Deque p (((B0,z):a):b) c q'
+
+{-
+bigger (Deque p [] ((((B2 x y,z):zs):ys):xs)) = 
     let Deque a b c = npush (Node x y) (Deque zs ys xs)
     in Deque p [] ((((B0,z):a):b):c)
-smaller (Deque p [((B1 x,z):zs)] xs) = 
+bigger (Deque p [((B1 x,z):zs)] xs) = 
     let Deque [] [] c = smaller (Deque [] [] xs)
     in Deque p [((B1 x,z):zs)] c
-smaller (Deque p (((B1 x,z):zs):(y:ys)) xs) = 
+bigger (Deque p (((B1 x,z):zs):(y:ys)) xs) = 
     let Deque [] b c = smaller (Deque [] (y:ys) xs)
     in Deque p (((B1 x,z):zs):b) c
-smaller (Deque p (((B2 x y,z):zs):ys) xs) = 
+bigger (Deque p (((B2 x y,z):zs):ys) xs) = 
     let Deque a b c = npush (Node x y) (Deque zs ys xs)
     in Deque p (((B0,z):a):b) c
+-}
 
 data Size = S0 | S1 | S2 deriving (Show)
 
-prepose (Deque _ [] []) = S1
-prepose (Deque _ [] ((((B0,_):_):_):_)) = S0
-prepose (Deque _ [] ((((B2 _ _,_):_):_):_)) = S2
-prepose (Deque _ (((B0,_):_):_) _) = S0
-prepose (Deque _ [((B1 _,_):_)] []) = S1
-prepose (Deque _ [((B1 _,_):_)] ((((B0,_):zs):ys):xs)) = S0
-prepose (Deque _ [((B1 _,_):_)] ((((B2 _ _,_):zs):ys):xs)) = S2
-prepose (Deque _ (((B1 _,_):_):(((B0,_):_):_)) _) = S0
-prepose (Deque _ (((B1 _,_):_):(((B2 _ _,_):_):_)) _) = S2
-prepose (Deque _ (((B2 _ _,_):_):_) _) = S2
+prepose (Deque _ [] [] _) = S1
+prepose (Deque _ [] ((((B0,_):_):_):_) _) = S0
+prepose (Deque _ [] ((((B2 _ _,_):_):_):_) _) = S2
+prepose (Deque _ (((B0,_):_):_) _ _) = S0
+prepose (Deque _ [((B1 _,_):_)] [] _) = S1
+prepose (Deque _ [((B1 _,_):_)] ((((B0,_):zs):ys):xs) _) = S0
+prepose (Deque _ [((B1 _,_):_)] ((((B2 _ _,_):zs):ys):xs) _) = S2
+prepose (Deque _ (((B1 _,_):_):(((B0,_):_):_)) _ _) = S0
+prepose (Deque _ (((B1 _,_):_):(((B2 _ _,_):_):_)) _ _) = S2
+prepose (Deque _ (((B2 _ _,_):_):_) _ _) = S2
 prepose _ = S1
+
 
 push x xs =
     let y = Leaf x
@@ -69,7 +100,7 @@ push x xs =
          S2 -> npush y (smaller xs)
          _  -> npush y xs
 
-empty = Deque [] [] []
+empty = Deque [] [] [] Nothing
 
 fromList = foldr push empty
 toList x = toList' x []
@@ -84,7 +115,7 @@ nextPre2 ((B1 _,_):xs) = nextPre2 xs
 nextPre2 ((B2 _ _,_):xs) = nextPre0 xs
 nextPre2 _ = False
 
-regularPreAlt (Deque a b c) = 
+regularPreAlt (Deque a b c _) = 
     let d = a ++ (concat b) ++ (concat $ concat c)
     in nextPre0 d || nextPre2 d
 
@@ -98,7 +129,7 @@ nextSuf2 ((_,B1 _):xs) = nextSuf2 xs
 nextSuf2 ((_,B2 _ _):xs) = nextSuf0 xs
 nextSuf2 _ = False
 
-regularSufAlt (Deque a b c) = 
+regularSufAlt (Deque a b c _) = 
     let d = a ++ (concat b) ++ (concat $ concat c)
     in nextSuf0 d || nextSuf2 d
 
@@ -108,9 +139,15 @@ bottomBias [(B0,B2 _ _)] = False
 bottomBias [_] = True
 bottomBias (x:y:ys) = bottomBias (y:ys)
 
-bottomOK (Deque a b c) = 
+bottomOK (Deque a b c _) = 
     let d = a ++ (concat b) ++ (concat $ concat c)
     in bottomBias d
+
+bigEnough (Deque _ _ _ (Just _)) = True
+bigEnough x@(Deque _ _ _ Nothing) =
+    case toList x of
+      [x] -> False
+      _ -> True
 
 ones (B1 _,B1 _) = True
 ones _ = False
@@ -135,7 +172,44 @@ bothNot (((B0,B2 _ _):xs):ys) = all ones xs && all halfNot ys
 bothNot (((B2 _ _,B2 _ _):xs):ys) = all ones xs && all halfNot ys
 bothNot _ = False
 
-allShape (Deque a b c) =
+allShape (Deque a b c _) =
     all ones a && all halfNot b && all bothNot c
 
-invariants x = allShape x && regularSufAlt x && regularPreAlt x && bottomOK x
+treeDepth (Leaf _) = return 1
+treeDepth (Node x y) =
+    do i <- treeDepth x
+       j <- treeDepth y
+       guard (i == j)
+       return (i+1)
+
+depthIs i [] = return i
+depthIs i ((B0,B0):xs) = depthIs (i+1) xs
+depthIs i ((B0,B1 x):xs) = 
+    do j <- treeDepth x
+       guard (i == j)
+       depthIs (i+1) xs
+depthIs i ((B0,B2 x y):xs) = 
+    do j <- treeDepth x
+       guard (i == j)
+       depthIs i ((B0,B1 y):xs)
+depthIs i ((B1 x,y):xs) = 
+    do j <- treeDepth x
+       guard (i == j)
+       depthIs i ((B0,y):xs) 
+depthIs i ((B2 x y,z):xs) = 
+    do j <- treeDepth x
+       guard (i == j)
+       depthIs i ((B1 y,z):xs)
+
+dequeDepth (Deque a b c Nothing) = 
+    let d = a ++ (concat b) ++ (concat $ concat c)
+    in isJust $ depthIs 1 d
+dequeDepth (Deque a b c (Just q)) = 
+    let d = a ++ (concat b) ++ (concat $ concat c)
+    in isJust $
+       do i <- depthIs 1 d
+          j <- treeDepth q
+          guard (i == j)
+          return i
+
+invariants x = allShape x && regularSufAlt x && regularPreAlt x && bottomOK x && bigEnough x && dequeDepth x

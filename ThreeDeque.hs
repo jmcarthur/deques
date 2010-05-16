@@ -41,15 +41,13 @@ npush x (Deque [] [[(B1 y,B0)]] [] q) = Deque [(B1 x,B1 y)] [] [] q
 npush x (Deque [] (((B1 y,z):zs):ys) xs q) = Deque [] [] ((((B2 x y,z):zs):ys):xs) q
 npush x (Deque ((B1 y,z):zs) ys xs q) = Deque [] (((B2 x y,z):zs):ys) xs q
 
-{-
-npop (Deque [] [] []) = Nothing
-npop (Deque [] [] ((((B2 x y,z):zs):ys):xs)) = Just (x,Deque [] (((B1 y,z):zs):ys) xs)
-npop (Deque [] (((B2 x y,z):zs):ys) xs) = Just (x,Deque ((B1 y,z):zs) ys xs)
-npop (Deque [] [[(B1 x,B2 y z)]] []) = Just (x,Deque [(B1 y,B1 z)] [] [])
-npop (Deque [] (((B1 y,z):zs):ys) xs) = Just (y,Deque [] [] ((((B0,z):zs):ys):xs))
-npop (Deque ((B1 y,z):zs) ys xs) = Just(y,Deque [] (((B0,z):zs):ys) xs)
--}
-
+npop (Deque [] [] [] Nothing) = Nothing
+npop (Deque [] [] [] (Just x)) = Just (x,empty)
+npop (Deque [] [] ((((B2 x y,z):zs):ys):xs) q) = Just (x,Deque [] (((B1 y,z):zs):ys) xs q)
+npop (Deque [] (((B2 x y,z):zs):ys) xs q) = Just (x,Deque ((B1 y,z):zs) ys xs q)
+npop (Deque [] [[(B1 x,B2 y z)]] [] q) = Just (x,Deque [(B1 y,B1 z)] [] [] q)
+npop (Deque [] (((B1 y,z):zs):ys) xs q) = Just (y,Deque [] [] ((((B0,z):zs):ys):xs) q)
+npop (Deque ((B1 y,z):zs) ys xs q) = Just(y,Deque [] (((B0,z):zs):ys) xs q)
 
 smaller (Deque p [] ((((B2 x y,z):zs):ys):xs) q) = 
     let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
@@ -134,12 +132,14 @@ regularSufAlt (Deque a b c _) =
     in nextSuf0 d || nextSuf2 d
 
 bottomBias [] = True
-bottomBias [(B2 _ _,B0)] = False
-bottomBias [(B0,B2 _ _)] = False
-bottomBias [_] = True
+bottomBias [(B2 _ _,B1 _)] = True
+bottomBias [(B1 _,B2 _ _)] = True
+bottomBias [(B1 _,B1 _)] = True
+bottomBias [_] = False
 bottomBias (x:y:ys) = bottomBias (y:ys)
 
-bottomOK (Deque a b c _) = 
+bottomOK (Deque a b c (Just _)) = True
+bottomOK (Deque a b c Nothing) = 
     let d = a ++ (concat b) ++ (concat $ concat c)
     in bottomBias d
 

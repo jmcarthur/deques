@@ -6,6 +6,7 @@ module ThreeDeque where
 
 import Monad
 import Maybe
+import List
 
 data Buffer a = B0
               | B1 a
@@ -47,7 +48,8 @@ npop (Deque [] [] ((((B2 x y,z):zs):ys):xs) q) = Just (x,Deque [] (((B1 y,z):zs)
 npop (Deque [] (((B2 x y,z):zs):ys) xs q) = Just (x,Deque ((B1 y,z):zs) ys xs q)
 npop (Deque [] [[(B1 x,B2 y z)]] [] q) = Just (x,Deque [(B1 y,B1 z)] [] [] q)
 npop (Deque [] (((B1 y,z):zs):ys) xs q) = Just (y,Deque [] [] ((((B0,z):zs):ys):xs) q)
-npop (Deque ((B1 y,z):zs) ys xs q) = Just(y,Deque [] (((B0,z):zs):ys) xs q)
+npop (Deque [(B1 y,B1 z)] [] [] Nothing) = Just (y,Deque [] [] [] (Just z))
+npop (Deque ((B1 y,z):zs) ys xs q) = Just (y,Deque [] (((B0,z):zs):ys) xs q)
 
 smaller (Deque p [] ((((B2 x y,z):zs):ys):xs) q) = 
     let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
@@ -62,20 +64,18 @@ smaller (Deque p (((B2 x y,z):zs):ys) xs q) =
     let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
     in Deque p (((B0,z):a):b) c q'
 
-{-
-bigger (Deque p [] ((((B2 x y,z):zs):ys):xs)) = 
-    let Deque a b c = npush (Node x y) (Deque zs ys xs)
-    in Deque p [] ((((B0,z):a):b):c)
-bigger (Deque p [((B1 x,z):zs)] xs) = 
-    let Deque [] [] c = smaller (Deque [] [] xs)
-    in Deque p [((B1 x,z):zs)] c
-bigger (Deque p (((B1 x,z):zs):(y:ys)) xs) = 
-    let Deque [] b c = smaller (Deque [] (y:ys) xs)
-    in Deque p (((B1 x,z):zs):b) c
-bigger (Deque p (((B2 x y,z):zs):ys) xs) = 
-    let Deque a b c = npush (Node x y) (Deque zs ys xs)
-    in Deque p (((B0,z):a):b) c
--}
+larger (Deque p [] ((((B0,z):zs):ys):xs) q) = 
+    let Just (Node x y,Deque a b c q') = npop (Deque zs ys xs q)
+    in Deque p [] ((((B2 x y,z):a):b):c) q'
+larger (Deque p [((B1 x,z):zs)] xs q) = 
+    let Deque [] [] c q' = larger (Deque [] [] xs q)
+    in Deque p [((B1 x,z):zs)] c q'
+larger (Deque p (((B1 x,z):zs):(y:ys)) xs q) = 
+    let Deque [] b c q' = larger (Deque [] (y:ys) xs q)
+    in Deque p (((B1 x,z):zs):b) c q'
+larger (Deque p (((B0,z):zs):ys) xs q) = 
+    let Just (Node x y,Deque a b c q') = npop (Deque zs ys xs q)
+    in Deque p (((B2 x y,z):a):b) c q'
 
 data Size = S0 | S1 | S2 deriving (Show)
 
@@ -91,17 +91,27 @@ prepose (Deque _ (((B1 _,_):_):(((B2 _ _,_):_):_)) _ _) = S2
 prepose (Deque _ (((B2 _ _,_):_):_) _ _) = S2
 prepose _ = S1
 
-
 push x xs =
     let y = Leaf x
     in case prepose xs of
          S2 -> npush y (smaller xs)
          _  -> npush y xs
 
+pop xs =
+    let ans = case prepose xs of
+                S0 -> npop (larger xs)
+                _ -> npop xs
+    in case ans of
+         Nothing -> Nothing
+         Just (Leaf y,ys) -> Just (y,ys)
+
 empty = Deque [] [] [] Nothing
+
+-----------------------------------
 
 fromList = foldr push empty
 toList x = toList' x []
+unList = unfoldr pop
 
 nextPre0 [] = True
 nextPre0 ((B0,_):xs) = nextPre2 xs
@@ -151,12 +161,6 @@ bigEnough x@(Deque _ _ _ Nothing) =
 
 ones (B1 _,B1 _) = True
 ones _ = False
-
-{-
-allOnes [] = True
-allOnes ((B1 _,B1 _):xs) = allOnes xs
-allOnes _ = False
--}
 
 halfNot [] = False
 halfNot ((B0,B1 _):xs) = all ones xs
@@ -213,3 +217,13 @@ dequeDepth (Deque a b c (Just q)) =
           return i
 
 invariants x = allShape x && regularSufAlt x && regularPreAlt x && bottomOK x && bigEnough x && dequeDepth x
+
+popPreserves x =
+    case pop x of
+      Nothing -> True
+      Just (_,z) -> invariants z && popPreserves z
+
+{-
+unList . fromList = id
+toList . fromList = id
+-}

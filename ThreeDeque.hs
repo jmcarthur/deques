@@ -17,8 +17,6 @@ data Tree a = Leaf a
 
 type PB a = (Buffer (Tree a),Buffer (Tree a))
 
--- TODO: non-empty substacks
-
 type NEL a = (a,[a])
 
 data Deque a = Deque [PB a] [NEL (NEL (PB a))] (Maybe (Tree a)) deriving (Show)
@@ -57,41 +55,16 @@ npush x (Deque [] ((((B1 y,z),zs),[]):xs) q) = Deque [] ((((B2 x y,z),zs),[]):xs
 npush x (Deque [] ((((B1 y,z),zs),(r:rs)):xs) q) = Deque [] ((((B2 x y,z),zs),[]):((r,rs):xs)) q
 npush x (Deque ((B1 y,z):zs) rs q) = Deque [] (cons13 ((B2 x y,z):zs) rs) q
 
-{-
-npush x (Deque [] [] Nothing) = Deque [] [] (Just x)
-npush x (Deque [] [] (Just y)) = Deque [(B1 x, B1 y)] [] Nothing
-npush x (Deque [] ((((B0,B1 z):zs):ys):xs) q) = Deque ((B1 x,B1 z):zs) (ys:xs) q
-npush x (Deque [] ([((B0,z):zs)]:xs) q) = Deque [] (cons13 ((B1 x,z):zs) xs) q
-    case topCheck (B0,z) of
-      Just Prefix -> Deque ((B1 x,z):zs) (ys:xs) q
-      Just Both -> 
-          case ys of
-            [] ->
-                case xs of
-                  [] -> Deque [] [[((B1 x,z):zs)]] q
-                  (((r:rs):qs):ps) ->
-                      case topCheck r of
-                        Just Suffix -> Deque [] ((((B1 x,z):zs):((r:rs):qs)):ps) q
-                        _ -> Deque [] ([((B1 x,z):zs)]:xs) q
-npush x (Deque [] [[[(B1 y,B0)]]] q) = Deque [(B1 x,B1 y)] [] q
-npush x (Deque [] ((((B1 y,z):zs):ys):xs) q) = Deque [] ([((B2 x y,z):zs)]:(ys:xs)) q
-npush x (Deque ((B1 y,z):zs) [] q) = Deque [] [[((B2 x y,z):zs)]] q
-npush x (Deque ((B1 y,z):zs) (((r:rs):qs):ps) q) = 
-    case topCheck r of
-      Just Prefix -> Deque [] ((((B2 x y,z):zs):((r:rs):qs)):ps) q
-      _ -> Deque [] ([(B2 x y,z):zs]:(((r:rs):qs):ps)) q
--}
-
-{-
-npop (Deque [] [] [] Nothing) = Nothing
-npop (Deque [] [] [] (Just x)) = Just (x,empty)
-npop (Deque [] [] ((((B2 x y,z):zs):ys):xs) q) = Just (x,Deque [] (((B1 y,z):zs):ys) xs q)
-npop (Deque [] (((B2 x y,z):zs):ys) xs q) = Just (x,Deque ((B1 y,z):zs) ys xs q)
-npop (Deque [] [[(B1 x,B2 y z)]] [] q) = Just (x,Deque [(B1 y,B1 z)] [] [] q)
-npop (Deque [] (((B1 y,z):zs):ys) xs q) = Just (y,Deque [] [] ((((B0,z):zs):ys):xs) q)
-npop (Deque [(B1 y,B1 z)] [] [] Nothing) = Just (y,Deque [] [] [] (Just z))
-npop (Deque ((B1 y,z):zs) ys xs q) = Just (y,Deque [] (((B0,z):zs):ys) xs q)
--}
+npop (Deque [] [] Nothing) = Nothing
+npop (Deque [] [] (Just y)) =  Just (y,empty)
+npop (Deque [] ((((B2 y x,B1 z),zs),[]):xs) q) = Just (y,Deque ((B1 x,B1 z):zs) xs q)
+npop (Deque [] ((((B2 y x,B1 z),zs),(r:rs)):xs) q) = Just (y,Deque ((B1 x,B1 z):zs) ((r,rs):xs) q)
+npop (Deque [] ((((B2 y x,z),zs),[]):xs) q) = Just (y,Deque [] (cons13 ((B1 x,z):zs) xs) q)
+npop (Deque [] [(((B1 y,B2 x z),[]),[])] q) = Just (y,Deque [(B1 x,B1 z)] [] q)
+npop (Deque [] ((((B1 y,z),zs),[]):xs) q) = Just (y,Deque [] ((((B0,z),zs),[]):xs) q)
+npop (Deque [] ((((B1 y,z),zs),(r:rs)):xs) q) = Just (y,Deque [] ((((B0,z),zs),[]):((r,rs):xs)) q)
+npop (Deque [(B1 y,B1 z)] [] Nothing) = Just (y,Deque [] [] (Just z))
+npop (Deque ((B1 y,z):zs) rs q) = Just (y,Deque [] (cons13 ((B0,z):zs) rs) q)
 
 prefix0' (Deque p ((((B2 x y,z),zs),[]):xs) q) = 
     let Deque a c q' = npush (Node x y) (Deque zs xs q)
@@ -108,45 +81,22 @@ prefix0 (Deque p ((((B1 x,z),zs),(r:rs)):xs) q) =
     in Deque p (cons13 ((B1 x,z):a) c) q' 
 prefix0 x = prefix0' x
 
-{-
-smaller (Deque p (((B1 x,z):zs):(y:ys)) xs q) = 
-    let Deque [] b c q' = smaller (Deque [] (y:ys) xs q) -- TODO: this can recurse too far
-    in Deque p (((B1 x,z):zs):b) c q'
-smaller (Deque p (((B2 x y,z):zs):ys) xs q) = 
-    let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
-    in Deque p (((B0,z):a):b) c q'
--}
+prefix2' (Deque p ((((B0,z),zs),[]):xs) q) = 
+    let Just (Node x y,Deque a c q') = npop (Deque zs xs q)
+    in Deque p (cons13 ((B2 x y,z):a) c) q' 
+prefix2' (Deque p ((((B0,z),zs),(r:rs)):xs) q) = 
+    let Just (Node x y,Deque a c q') = npop (Deque zs ((r,rs):xs) q)
+    in Deque p (cons13 ((B2 x y,z):a) c) q'
 
-{-
-smaller (Deque p [] ((((B2 x y,z):zs):ys):xs) q) = 
-    let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
-    in Deque p [] ((((B0,z):a):b):c) q'
-smaller (Deque p [((B1 x,z):zs)] xs q) = 
-    let Deque [] [] c q' = smaller (Deque [] [] xs q)
-    in Deque p [((B1 x,z):zs)] c q'
-smaller (Deque p (((B1 x,z):zs):(y:ys)) xs q) = 
-    let Deque [] b c q' = smaller (Deque [] (y:ys) xs q) -- TODO: this can recurse too far
-    in Deque p (((B1 x,z):zs):b) c q'
-smaller (Deque p (((B2 x y,z):zs):ys) xs q) = 
-    let Deque a b c q' = npush (Node x y) (Deque zs ys xs q)
-    in Deque p (((B0,z):a):b) c q'
-
-larger (Deque p [] ((((B0,z):zs):ys):xs) q) = 
-    let Just (Node x y,Deque a b c q') = npop (Deque zs ys xs q)
-    in Deque p [] ((((B2 x y,z):a):b):c) q'
-larger (Deque p [((B1 x,z):zs)] xs q) = 
-    let Deque [] [] c q' = larger (Deque [] [] xs q)
-    in Deque p [((B1 x,z):zs)] c q'
-larger (Deque p (((B1 x,z):zs):(y:ys)) xs q) = 
-    let Deque [] b c q' = larger (Deque [] (y:ys) xs q)
-    in Deque p (((B1 x,z):zs):b) c q'
-larger (Deque p (((B0,z):zs):ys) xs q) = 
-    let Just (Node x y,Deque a b c q') = npop (Deque zs ys xs q)
-    in Deque p (((B2 x y,z):a):b) c q'
--}
+prefix2 (Deque p ((((B1 x,z),zs),[]):xs) q) = 
+    let Deque a c q' = prefix2' (Deque zs xs q)
+    in Deque p (cons13 ((B1 x,z):a) c) q' 
+prefix2 (Deque p ((((B1 x,z),zs),(r:rs)):xs) q) = 
+    let Deque a c q' = prefix2' (Deque zs ((r,rs):xs) q)
+    in Deque p (cons13 ((B1 x,z):a) c) q' 
+prefix2 x = prefix2' x
 
 data Size = S0 | S1 | S2 deriving (Show)
-
 
 prepose' (Deque _ [] _) = S1
 prepose' (Deque _ ((((B0,_),_),_):_) _) = S0
@@ -155,43 +105,20 @@ prepose' (Deque _ ((((B2 _ _,_),_),_):_) _) = S2
 prepose (Deque p ((((B1 _,_),_),[]):xs) q) = prepose' (Deque p xs q)
 prepose (Deque p ((((B1 _,_),_),(r:rs)):xs) q) = prepose' (Deque p ((r,rs):xs) q)
 prepose x = prepose' x
-{-
-prepose (Deque _ (((B0,_):_):_) _ _) = S0
-prepose (Deque _ [((B1 _,_):_)] [] _) = S1
-prepose (Deque _ [((B1 _,_):_)] ((((B0,_):zs):ys):xs) _) = S0
-prepose (Deque _ [((B1 _,_):_)] ((((B2 _ _,_):zs):ys):xs) _) = S2
-prepose (Deque _ (((B1 _,_):_):(((B0,_):_):_)) _ _) = S0
-prepose (Deque _ (((B1 _,_):_):(((B2 _ _,_):_):_)) _ _) = S2
-prepose (Deque _ (((B2 _ _,_):_):_) _ _) = S2
-prepose _ = S1
-
-prepose (Deque _ [] [] _) = S1
-prepose (Deque _ [] ((((B0,_):_):_):_) _) = S0
-prepose (Deque _ [] ((((B2 _ _,_):_):_):_) _) = S2
-prepose (Deque _ (((B0,_):_):_) _ _) = S0
-prepose (Deque _ [((B1 _,_):_)] [] _) = S1
-prepose (Deque _ [((B1 _,_):_)] ((((B0,_):zs):ys):xs) _) = S0
-prepose (Deque _ [((B1 _,_):_)] ((((B2 _ _,_):zs):ys):xs) _) = S2
-prepose (Deque _ (((B1 _,_):_):(((B0,_):_):_)) _ _) = S0
-prepose (Deque _ (((B1 _,_):_):(((B2 _ _,_):_):_)) _ _) = S2
-prepose (Deque _ (((B2 _ _,_):_):_) _ _) = S2
-prepose _ = S1
--}
 
 push x xs =
     let y = Leaf x
     in case prepose xs of
          S2 -> npush y (prefix0 xs)
          _  -> npush y xs
-{-
+
 pop xs =
     let ans = case prepose xs of
-                S0 -> npop (larger xs)
+                S0 -> npop (prefix2 xs)
                 _ -> npop xs
     in case ans of
          Nothing -> Nothing
          Just (Leaf y,ys) -> Just (y,ys)
--}
 
 empty = Deque [] [] Nothing
 
@@ -199,15 +126,12 @@ empty = Deque [] [] Nothing
 
 fromList = foldr push empty
 
-{-
 unList = unfoldr pop
 
 popPreserves x =
     case pop x of
       Nothing -> True
       Just (_,z) -> invariants z && popPreserves z
--}
-
 
 toListTree' (Leaf x) r = x:r
 toListTree' (Node x y) r = toListTree' x (toListTree' y r)
@@ -276,23 +200,6 @@ bigEnough x@(Deque _ _ Nothing) =
 
 ones (B1 _,B1 _) = True
 ones _ = False
-
-{-
-topLeft ((B0,B1 _):xs) = all ones xs
-topLeft ((B2 _ _,B1 _):xs) = all ones xs
-topLeft _ = False
-
-topRight ((B1 _,B0):xs) = all ones xs
-topRight ((B1 _,B2 _ _):xs) = all ones xs
-topRight _ = False
-
-topBoth ((B0,B0):xs) = all ones xs
-topBoth ((B0,B2 _ _):xs) = all ones xs
-topBoth ((B2 _ _,B0):xs) = all ones xs
-topBoth ((B2 _ _,B2 _ _):xs) = all ones xs
-topBoth _ = False
--}
-
 
 top1 (x,xs) =
     do v <- topCheck x

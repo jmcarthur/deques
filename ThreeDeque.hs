@@ -7,6 +7,7 @@ module ThreeDeque where
 import Monad
 import Maybe
 import Data.List
+import Test.QuickCheck
 
 data Buffer a = B0
               | B1 a
@@ -98,65 +99,50 @@ prefix0' ((((B2 x y,z),zs),(r:rs)):xs) q =
     let Deque a c q' = npush (Node x y) (Deque zs ((r,rs):xs) q)
     in (cons13 ((B0,z):a) c, q')
 
-prefix0 ((((B1 x,z),zs),rrs@[]):xs) q = 
+prefix0 ((((B1 x,z),zs),rs):xs) q = 
     let (c,q') = prefix0' xs q
-    in ((((B1 x,z),zs),(rrs)):c, q')
---    in (cons13 ((B1 x,z):zs) c, q')
-prefix0 ((((B1 x,z),zs),(r:rs)):xs) q = 
-    let (c,q') = prefix0' xs q
-    in ((((B1 x,z),zs),(r:rs)):c, q')
+    in ((((B1 x,z),zs),rs):c, q')
 prefix0 x y = prefix0' x y
+
+suffix0' ((((z,B2 x y),zs),[]):xs) q = 
+    let Deque a c q' = ninject (Deque zs xs q) (Node x y)
+    in (cons13 ((z,B0):a) c,q')
+suffix0' ((((z,B2 x y),zs),(r:rs)):xs) q = 
+    let Deque a c q' = ninject (Deque zs ((r,rs):xs) q) (Node x y)
+    in (cons13 ((z,B0):a) c,q')
+
+suffix0 ((((z,B1 x),zs),rs):xs) q = 
+    let (c, q') = suffix0' xs q
+    in ((((z,B1 x),zs),rs):c, q')
+suffix0 x y = suffix0' x y
+
+prefix2' ((((B0,z),zs),[]):xs) q = 
+    let Just (Node x y,Deque a c q') = npop (Deque zs xs q)
+    in (cons13 ((B2 x y,z):a) c, q') 
+prefix2' ((((B0,z),zs),(r:rs)):xs) q = 
+    let Just (Node x y,Deque a c q') = npop (Deque zs ((r,rs):xs) q)
+    in (cons13 ((B2 x y,z):a) c, q')
+
+prefix2 ((((B1 x,z),zs),rs):xs) q = 
+    let (c, q') = prefix2' xs q
+    in ((((B1 x,z),zs),rs):c, q')
+prefix2 x y = prefix2' x y
+
+suffix2' ((((z,B0),zs),[]):xs) q = 
+    let Just (Deque a c q',Node x y) = neject (Deque zs xs q)
+    in (cons13 ((z,B2 x y):a) c, q')
+suffix2' ((((z,B0),zs),(r:rs)):xs) q = 
+    let Just (Deque a c q',Node x y) = neject (Deque zs ((r,rs):xs) q)
+    in (cons13 ((z,B2 x y):a) c, q')
+
+suffix2 ((((z,B1 x),zs),rs):xs) q = 
+    let (c,q') = suffix2' xs q
+    in ((((z,B1 x),zs),rs):c, q')
+suffix2 x y = suffix2' x y
 
 fixHelp f (Deque b c d) = 
     let (c',d') = f c d
     in Deque b c' d'
-
-suffix0' (Deque p ((((z,B2 x y),zs),[]):xs) q) = 
-    let Deque a c q' = ninject (Deque zs xs q) (Node x y)
-    in Deque p (cons13 ((z,B0):a) c) q' 
-suffix0' (Deque p ((((z,B2 x y),zs),(r:rs)):xs) q) = 
-    let Deque a c q' = ninject (Deque zs ((r,rs):xs) q) (Node x y)
-    in Deque p (cons13 ((z,B0):a) c) q'
-
-suffix0 (Deque p ((((z,B1 x),zs),[]):xs) q) = 
-    let Deque a c q' = suffix0' (Deque zs xs q)
-    in Deque p (cons13 ((z,B1 x):a) c) q' 
-suffix0 (Deque p ((((z,B1 x),zs),(r:rs)):xs) q) = 
-    let Deque [] c q' = suffix0' (Deque [] xs q)
-    in Deque p ((((z,B1 x),zs),(r:rs)):c) q' 
-suffix0 x = suffix0' x
-
-prefix2' (Deque p ((((B0,z),zs),[]):xs) q) = 
-    let Just (Node x y,Deque a c q') = npop (Deque zs xs q)
-    in Deque p (cons13 ((B2 x y,z):a) c) q' 
-prefix2' (Deque p ((((B0,z),zs),(r:rs)):xs) q) = 
-    let Just (Node x y,Deque a c q') = npop (Deque zs ((r,rs):xs) q)
-    in Deque p (cons13 ((B2 x y,z):a) c) q'
-
-prefix2 (Deque p ((((B1 x,z),zs),[]):xs) q) = 
-    let Deque a c q' = prefix2' (Deque zs xs q)
-    in Deque p (cons13 ((B1 x,z):a) c) q' 
-prefix2 (Deque p ((((B1 x,z),zs),(r:rs)):xs) q) = 
-    let Deque [] c q' = prefix2' (Deque [] xs q)
-    in Deque p ((((B1 x,z),zs),(r:rs)):c) q' 
-prefix2 x = prefix2' x
-
-suffix2' (Deque p ((((z,B0),zs),[]):xs) q) = 
-    let Just (Deque a c q',Node x y) = neject (Deque zs xs q)
-    in {-case (a,c,q') of
-         ([],[],Nothing) -> Deque [((B1 x,B1 y)] [] Nothing 
-         _ -> -} Deque p (cons13 ((z,B2 x y):a) c) q' 
-suffix2' (Deque p ((((z,B0),zs),(r:rs)):xs) q) = 
-    let Just (Deque a c q',Node x y) = neject (Deque zs ((r,rs):xs) q)
-    in Deque p (cons13 ((z,B2 x y):a) c) q'
-
-suffix2 (Deque p ((((z,B1 x),zs),[]):xs) q) = 
-    let Deque a c q' = suffix2' (Deque zs xs q)
-    in Deque p (cons13 ((z,B1 x):a) c) q' 
-suffix2 (Deque p ((((z,B1 x),zs),(r:rs)):xs) q) = 
-    let Deque [] c q' = suffix2' (Deque [] xs q)
-    in Deque p ((((z,B1 x),zs),(r:rs)):c) q' 
-suffix2 x = suffix2' x
 
 data Size = S0 | S1 | S2 deriving (Show)
 
@@ -165,7 +151,6 @@ prepose' (Deque _ ((((B0,_),_),_):_) _) = S0
 prepose' (Deque _ ((((B2 _ _,_),_),_):_) _) = S2
 
 prepose (Deque p ((((B1 _,_),_),_):xs) q) = prepose' (Deque p xs q)
---prepose (Deque p ((((B1 _,_),_),(r:rs)):xs) q) = prepose' (Deque p ((r,rs):xs) q)
 prepose x = prepose' x
 
 sufpose' (Deque _ [] _) = S1
@@ -173,14 +158,8 @@ sufpose' (Deque _ ((((_,B0),_),_):_) _) = S0
 sufpose' (Deque _ ((((_,B2 _ _),_),_):_) _) = S2
 
 sufpose (Deque p ((((_,B1 _),_),_):xs) q) = sufpose' (Deque p xs q)
---sufpose (Deque p ((((_,B1 _),_),(r:rs)):xs) q) = sufpose' (Deque p ((r,rs):xs) q)
 sufpose x = sufpose' x
 
-{-
-
-Deque [] [(((B2 (Leaf 1) (Leaf 2),B1 (Leaf 9)),[]),[((B0,B1 (Node (Leaf 7) (Leaf 8))),[])])] (Just (Node (Node (Leaf 3) (Leaf 4)) (Node (Leaf 5) (Leaf 6))))
-
--}
 push x xs =
     let y = Leaf x
     in case prepose xs of
@@ -190,12 +169,12 @@ push x xs =
 inject xs x =
     let y = Leaf x
     in case sufpose xs of
-         S2 -> ninject (suffix0 xs) y
+         S2 -> ninject (fixHelp suffix0 xs) y
          _  -> ninject xs y
 
 pop xs =
     let ans = case prepose xs of
-                S0 -> npop (prefix2 xs)
+                S0 -> npop (fixHelp prefix2 xs)
                 _ -> npop xs
     in case ans of
          Nothing -> Nothing
@@ -203,7 +182,7 @@ pop xs =
 
 eject xs =
     let ans = case sufpose xs of
-                S0 -> neject (suffix2 xs)
+                S0 -> neject (fixHelp suffix2 xs)
                 _ -> neject xs
     in case ans of
          Nothing -> Nothing
@@ -404,3 +383,5 @@ test 13 n = and [let v = [1..i] in v == nuList (fromList v) | i <- [1..n]]
 test 14 n = and [let v = [1..i] in v == nuList (injectList v) | i <- [1..n]]
 
 tests k n = and [test i n | i <- [1..k]]
+
+main = print $ tests 14 55

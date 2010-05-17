@@ -71,6 +71,8 @@ npop (Deque [] ((((B2 y x,B1 z),zs),[]):xs) q) = Just (y,Deque ((B1 x,B1 z):zs) 
 npop (Deque [] ((((B2 y x,B1 z),zs),(r:rs)):xs) q) = Just (y,Deque ((B1 x,B1 z):zs) ((r,rs):xs) q)
 npop (Deque [] ((((B2 y x,z),zs),[]):xs) q) = Just (y,Deque [] (cons13 ((B1 x,z):zs) xs) q)
 npop (Deque [] [(((B1 y,B2 x z),[]),[])] Nothing) = Just (y,Deque [(B1 x,B1 z)] [] Nothing)
+npop (Deque [] [(((B1 y,B0),[]),[])] Nothing) = Just (y,empty)
+npop (Deque [] [(((B1 y,B0),[]),[])] (Just (Node x z))) = Just (y, Deque [(B1 x,B1 z)] [] Nothing)
 npop (Deque [] ((((B1 y,z),zs),[]):xs) q) = Just (y,Deque [] ((((B0,z),zs),[]):xs) q)
 npop (Deque [] ((((B1 y,z),zs),(r:rs)):xs) q) = Just (y,Deque [] ((((B0,z),zs),[]):((r,rs):xs)) q)
 npop (Deque [(B1 y,B1 z)] [] Nothing) = Just (y,Deque [] [] (Just z))
@@ -100,8 +102,8 @@ prefix0 (Deque p ((((B1 x,z),zs),[]):xs) q) =
     let Deque a c q' = prefix0' (Deque zs xs q)
     in Deque p (cons13 ((B1 x,z):a) c) q' 
 prefix0 (Deque p ((((B1 x,z),zs),(r:rs)):xs) q) = 
-    let Deque a c q' = prefix0' (Deque zs ((r,rs):xs) q)
-    in Deque p (cons13 ((B1 x,z):a) c) q' 
+    let Deque [] c q' = prefix0' (Deque [] xs q)
+    in Deque p ((((B1 x,z),zs),(r:rs)):c) q' 
 prefix0 x = prefix0' x
 
 suffix0' (Deque p ((((z,B2 x y),zs),[]):xs) q) = 
@@ -115,8 +117,8 @@ suffix0 (Deque p ((((z,B1 x),zs),[]):xs) q) =
     let Deque a c q' = suffix0' (Deque zs xs q)
     in Deque p (cons13 ((z,B1 x):a) c) q' 
 suffix0 (Deque p ((((z,B1 x),zs),(r:rs)):xs) q) = 
-    let Deque a c q' = suffix0' (Deque zs ((r,rs):xs) q)
-    in Deque p (cons13 ((z,B1 x):a) c) q' 
+    let Deque [] c q' = suffix0' (Deque [] xs q)
+    in Deque p ((((z,B1 x),zs),(r:rs)):c) q' 
 suffix0 x = suffix0' x
 
 prefix2' (Deque p ((((B0,z),zs),[]):xs) q) = 
@@ -130,8 +132,8 @@ prefix2 (Deque p ((((B1 x,z),zs),[]):xs) q) =
     let Deque a c q' = prefix2' (Deque zs xs q)
     in Deque p (cons13 ((B1 x,z):a) c) q' 
 prefix2 (Deque p ((((B1 x,z),zs),(r:rs)):xs) q) = 
-    let Deque a c q' = prefix2' (Deque zs ((r,rs):xs) q)
-    in Deque p (cons13 ((B1 x,z):a) c) q' 
+    let Deque [] c q' = prefix2' (Deque [] xs q)
+    in Deque p ((((B1 x,z),zs),(r:rs)):c) q' 
 prefix2 x = prefix2' x
 
 suffix2' (Deque p ((((z,B0),zs),[]):xs) q) = 
@@ -358,6 +360,10 @@ toList . fromList = id
 -------------------------
 
 unList = unfoldr pop
+nuList xs =
+    case eject xs of
+      Nothing -> []
+      Just (ys,y) -> (nuList ys)++[y]
 
 popPreserves f x =
     case pop x of
@@ -385,5 +391,11 @@ test 5 n = and [let v = [1..i] in v == toList (injectList v) | i <- [1..n]]
 test 6 n = and [let v = [1..i] in invariants (injectList v) | i <- [1..n]]
 test 7 n = and [let v = [1..i] in popPreserves (pushPreserves invariants (2*i) (42)) (fromList v) | i <- [1..n]]
 test 8 n = and [let v = [1..i] in ejectPreserves invariants (fromList v) | i <- [1..n]]
+test 9 n = and [let v = [1..i] in v == unList (injectList v) | i <- [1..n]]
+test 10 n = and [let v = [1..i] in popPreserves invariants (injectList v) | i <- [1..n]]
+test 11 n = and [let v = [1..i] in popPreserves (pushPreserves invariants (2*i) (42)) (injectList v) | i <- [1..n]]
+test 12 n = and [let v = [1..i] in ejectPreserves invariants (injectList v) | i <- [1..n]]
+test 13 n = and [let v = [1..i] in v == nuList (fromList v) | i <- [1..n]]
+test 14 n = and [let v = [1..i] in v == nuList (injectList v) | i <- [1..n]]
 
 tests k n = and [test i n | i <- [1..k]]

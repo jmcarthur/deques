@@ -51,7 +51,7 @@ npush x (Deque [] [] (Just y)) = Deque [(B1 x, B1 y)] [] Nothing
 npush x (Deque [] ((((B0,B1 z),zs),[]):xs) q) = Deque ((B1 x,B1 z):zs) xs q
 npush x (Deque [] ((((B0,B1 z),zs),(y:ys)):xs) q) = Deque ((B1 x,B1 z):zs) ((y,ys):xs) q
 npush x (Deque [] ((((B0,z),zs),[]):xs) q) = Deque [] (cons13 ((B1 x,z):zs) xs) q 
-npush x (Deque [] [(((B1 y,B0),[]),[])] Nothing) = Deque [(B1 x,B1 y)] [] Nothing
+-- npush x (Deque [] [(((B1 y,B0),[]),[])] Nothing) = Deque [(B1 x,B1 y)] [] Nothing
 npush x (Deque [] ((((B1 y,z),zs),[]):xs) q) = Deque [] ((((B2 x y,z),zs),[]):xs) q 
 npush x (Deque [] ((((B1 y,z),zs),(r:rs)):xs) q) = Deque [] ((((B2 x y,z),zs),[]):((r,rs):xs)) q
 npush x (Deque ((B1 y,z):zs) rs q) = Deque [] (cons13 ((B2 x y,z):zs) rs) q
@@ -61,7 +61,7 @@ ninject (Deque [] [] (Just y)) x = Deque [(B1 y, B1 x)] [] Nothing
 ninject (Deque [] ((((B1 z,B0),zs),[]):xs) q) x = Deque ((B1 z,B1 x):zs) xs q
 ninject (Deque [] ((((B1 z,B0),zs),(y:ys)):xs) q) x = Deque ((B1 z,B1 x):zs) ((y,ys):xs) q
 ninject (Deque [] ((((z,B0),zs),[]):xs) q) x = Deque [] (cons13 ((z,B1 x):zs) xs) q 
-ninject (Deque [] [(((B0,B1 y),[]),[])] Nothing) x = Deque [(B1 y,B1 x)] [] Nothing
+-- ninject (Deque [] [(((B0,B1 y),[]),[])] Nothing) x = Deque [(B1 y,B1 x)] [] Nothing
 ninject (Deque [] ((((z,B1 y),zs),[]):xs) q) x = Deque [] ((((z,B2 y x),zs),[]):xs) q 
 ninject (Deque [] ((((z,B1 y),zs),(r:rs)):xs) q) x = Deque [] ((((z,B2 y x),zs),[]):((r,rs):xs)) q
 ninject (Deque ((z,B1 y):zs) rs q) x = Deque [] (cons13 ((z,B2 y x):zs) rs) q
@@ -72,7 +72,7 @@ npop (Deque [] ((((B2 y x,B1 z),zs),[]):xs) q) = Just (y,Deque ((B1 x,B1 z):zs) 
 npop (Deque [] ((((B2 y x,B1 z),zs),(r:rs)):xs) q) = Just (y,Deque ((B1 x,B1 z):zs) ((r,rs):xs) q)
 npop (Deque [] ((((B2 y x,z),zs),[]):xs) q) = Just (y,Deque [] (cons13 ((B1 x,z):zs) xs) q)
 npop (Deque [] [(((B1 y,B2 x z),[]),[])] Nothing) = Just (y,Deque [(B1 x,B1 z)] [] Nothing)
-npop (Deque [] [(((B1 y,B0),[]),[])] Nothing) = Just (y,empty)
+-- npop (Deque [] [(((B1 y,B0),[]),[])] Nothing) = Just (y,empty)
 npop (Deque [] [(((B1 y,B0),[]),[])] (Just (Node x z))) = Just (y, Deque [(B1 x,B1 z)] [] Nothing)
 npop (Deque [] ((((B1 y,z),zs),[]):xs) q) = Just (y,Deque [] ((((B0,z),zs),[]):xs) q)
 npop (Deque [] ((((B1 y,z),zs),(r:rs)):xs) q) = Just (y,Deque [] ((((B0,z),zs),[]):((r,rs):xs)) q)
@@ -85,7 +85,7 @@ neject (Deque [] ((((B1 x,B2 z y),zs),[]):xs) q) = Just (Deque ((B1 x,B1 z):zs) 
 neject (Deque [] ((((B1 x,B2 z y),zs),(r:rs)):xs) q) = Just (Deque ((B1 x,B1 z):zs) ((r,rs):xs) q,y)
 neject (Deque [] ((((z,B2 x y),zs),[]):xs) q) = Just (Deque [] (cons13 ((z,B1 x):zs) xs) q,y)
 neject (Deque [] [(((B2 x z,B1 y),[]),[])] Nothing) = Just (Deque [(B1 x,B1 z)] [] Nothing,y)
-neject (Deque [] [(((B0,B1 y),[]),[])] Nothing) = Just (empty,y)
+-- neject (Deque [] [(((B0,B1 y),[]),[])] Nothing) = Just (empty,y)
 neject (Deque [] [(((B0,B1 y),[]),[])] (Just (Node x z))) = Just (Deque [(B1 x,B1 z)] [] Nothing,y)
 neject (Deque [] ((((z,B1 y),zs),[]):xs) q) = Just (Deque [] ((((z,B0),zs),[]):xs) q,y)
 neject (Deque [] ((((z,B1 y),zs),(r:rs)):xs) q) = Just (Deque [] ((((z,B0),zs),[]):((r,rs):xs)) q,y)
@@ -359,29 +359,40 @@ ejectPreserves f x =
       Nothing -> True
       Just (z,_) -> f z && ejectPreserves f z
 
-pushPreserves f 0 _ _ = True
-pushPreserves f n x xs =
+pushPreserves 0 _ f _ = True
+pushPreserves n x f xs =
     let m = n-1
         ys = push x xs
-    in f ys && pushPreserves f m x ys
+    in f ys && pushPreserves m x f ys
+
+injectPreserves 0 _ f _ = True
+injectPreserves n x f xs =
+    let m = n-1
+        ys = inject xs x
+    in f ys && injectPreserves m x f ys
 
 injectList = foldl' inject empty
 
-test 1 n = and [let v = [1..i] in v == toList (fromList v) | i <- [1..n]]
+test 1 n = True --and [let v = [1..i] in v == toList (fromList v) | i <- [1..n]]
 test 2 n = and [let v = [1..i] in invariants (fromList v) | i <- [1..n]]
-test 3 n = and [let v = [1..i] in v == unList (fromList v) | i <- [1..n]]
+test 3 n = True --and [let v = [1..i] in v == unList (fromList v) | i <- [1..n]]
 test 4 n = and [let v = [1..i] in popPreserves invariants (fromList v) | i <- [1..n]]
-test 5 n = and [let v = [1..i] in v == toList (injectList v) | i <- [1..n]]
+test 5 n = True --and [let v = [1..i] in v == toList (injectList v) | i <- [1..n]]
 test 6 n = and [let v = [1..i] in invariants (injectList v) | i <- [1..n]]
-test 7 n = and [let v = [1..i] in popPreserves (pushPreserves invariants (2*i) (42)) (fromList v) | i <- [1..n]]
+test 7 n = True --and [let v = [1..i] in popPreserves (pushPreserves invariants (2*i) (42)) (fromList v) | i <- [1..n]]
 test 8 n = and [let v = [1..i] in ejectPreserves invariants (fromList v) | i <- [1..n]]
-test 9 n = and [let v = [1..i] in v == unList (injectList v) | i <- [1..n]]
+test 9 n = True --and [let v = [1..i] in v == unList (injectList v) | i <- [1..n]]
 test 10 n = and [let v = [1..i] in popPreserves invariants (injectList v) | i <- [1..n]]
-test 11 n = and [let v = [1..i] in popPreserves (pushPreserves invariants (2*i) (42)) (injectList v) | i <- [1..n]]
+test 11 n = True --and [let v = [1..i] in popPreserves (pushPreserves invariants (2*i) (42)) (injectList v) | i <- [1..n]]
 test 12 n = and [let v = [1..i] in ejectPreserves invariants (injectList v) | i <- [1..n]]
-test 13 n = and [let v = [1..i] in v == nuList (fromList v) | i <- [1..n]]
-test 14 n = and [let v = [1..i] in v == nuList (injectList v) | i <- [1..n]]
+test 13 n = True --and [let v = [1..i] in v == nuList (fromList v) | i <- [1..n]]
+test 14 n = True --and [let v = [1..i] in v == nuList (injectList v) | i <- [1..n]]
+test 15 n = and [let v = [1..i] in f (g invariants) (h v) | i <- [1..n], 
+                         l <- [[popPreserves, ejectPreserves, pushPreserves (2*i) 42, injectPreserves (2*i) 42]], 
+                         f <- l, g <- l,
+                         h <- [injectList, fromList]]
+test 16 n = and [let v = [1..i] in v == f (g v) | i <- [1..n], f <- [toList, unList, nuList], g <- [fromList, injectList]]
+test _ _ = True
 
 tests k n = and [test i n | i <- [1..k]]
 
-main = print $ tests 14 55

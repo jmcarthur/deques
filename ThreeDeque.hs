@@ -91,20 +91,25 @@ neject (Deque [] ((((z,B1 y),zs),(r:rs)):xs) q) = Just (Deque [] ((((z,B0),zs),[
 neject (Deque [(B1 z,B1 y)] [] Nothing) = Just (Deque [] [] (Just z),y)
 neject (Deque ((z,B1 y):zs) rs q) = Just (Deque [] (cons13 ((z,B0):zs) rs) q,y)
 
-prefix0' (Deque p ((((B2 x y,z),zs),[]):xs) q) = 
+prefix0' ((((B2 x y,z),zs),[]):xs) q = 
     let Deque a c q' = npush (Node x y) (Deque zs xs q)
-    in Deque p (cons13 ((B0,z):a) c) q' 
-prefix0' (Deque p ((((B2 x y,z),zs),(r:rs)):xs) q) = 
+    in (cons13 ((B0,z):a) c,q')
+prefix0' ((((B2 x y,z),zs),(r:rs)):xs) q = 
     let Deque a c q' = npush (Node x y) (Deque zs ((r,rs):xs) q)
-    in Deque p (cons13 ((B0,z):a) c) q'
+    in (cons13 ((B0,z):a) c, q')
 
-prefix0 (Deque p ((((B1 x,z),zs),[]):xs) q) = 
-    let Deque a c q' = prefix0' (Deque zs xs q)
-    in Deque p (cons13 ((B1 x,z):a) c) q' 
-prefix0 (Deque p ((((B1 x,z),zs),(r:rs)):xs) q) = 
-    let Deque [] c q' = prefix0' (Deque [] xs q)
-    in Deque p ((((B1 x,z),zs),(r:rs)):c) q' 
-prefix0 x = prefix0' x
+prefix0 ((((B1 x,z),zs),rrs@[]):xs) q = 
+    let (c,q') = prefix0' xs q
+    in ((((B1 x,z),zs),(rrs)):c, q')
+--    in (cons13 ((B1 x,z):zs) c, q')
+prefix0 ((((B1 x,z),zs),(r:rs)):xs) q = 
+    let (c,q') = prefix0' xs q
+    in ((((B1 x,z),zs),(r:rs)):c, q')
+prefix0 x y = prefix0' x y
+
+fixHelp f (Deque b c d) = 
+    let (c',d') = f c d
+    in Deque b c' d'
 
 suffix0' (Deque p ((((z,B2 x y),zs),[]):xs) q) = 
     let Deque a c q' = ninject (Deque zs xs q) (Node x y)
@@ -179,7 +184,7 @@ Deque [] [(((B2 (Leaf 1) (Leaf 2),B1 (Leaf 9)),[]),[((B0,B1 (Node (Leaf 7) (Leaf
 push x xs =
     let y = Leaf x
     in case prepose xs of
-         S2 -> npush y (prefix0 xs)
+         S2 -> npush y (fixHelp prefix0 xs)
          _  -> npush y xs
 
 inject xs x =

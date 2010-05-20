@@ -114,73 +114,73 @@ neject (Deque Nil (Cons (SP (SP (SP z (B1 y)) zs) (Cons r rs)) xs) q) = Some (SP
 neject (Deque (Cons (SP (B1 z) (B1 y)) Nil) Nil None) = Some (SP (Deque Nil Nil (Some z)) y)
 neject (Deque (Cons (SP z (B1 y)) zs) rs q) = Some (SP (Deque Nil (cons13 (SP z B0) zs rs) q) y)
 
-{-
-prefix0' ((((B2 x y,z),zs),Nil):xs) q = 
-    let Deque a c q' = npush (Node x y) (Deque zs xs q)
-    in (cons13 ((B0,z):a) c,q')
-prefix0' ((((B2 x y,z),zs),(r:rs)):xs) q = 
-    let Deque a c q' = npush (Node x y) (Deque zs ((r,rs):xs) q)
-    in (cons13 ((B0,z):a) c, q')
 
-prefix0 ((((B1 x,z),zs),rs):xs) q = 
-    let (c,q') = prefix0' xs q
-    in ((((B1 x,z),zs),rs):c, q')
+prefix0' (Cons (SP (SP (SP (B2 x y) z) zs) Nil) xs) q = 
+    let Deque a c q' = npush (Node x y) (Deque zs xs q)
+    in SP (cons13 (SP B0 z) a c) q'
+prefix0' (Cons (SP (SP (SP (B2 x y) z) zs) (Cons r rs)) xs) q = 
+    let Deque a c q' = npush (Node x y) (Deque zs (Cons (SP r rs) xs) q)
+    in SP (cons13 (SP B0 z) a c) q'
+
+prefix0 (Cons (SP (SP (SP (B1 x) z) zs) rs) xs) q = 
+    let SP c q' = prefix0' xs q
+    in SP (Cons (SP (SP (SP (B1 x) z) zs) rs) c) q'
 prefix0 x y = prefix0' x y
 
-suffix0' ((((z,B2 x y),zs),Nil):xs) q = 
+suffix0' (Cons (SP (SP (SP z (B2 x y)) zs) Nil) xs) q = 
     let Deque a c q' = ninject (Deque zs xs q) (Node x y)
-    in (cons13 ((z,B0):a) c,q')
-suffix0' ((((z,B2 x y),zs),(r:rs)):xs) q = 
-    let Deque a c q' = ninject (Deque zs ((r,rs):xs) q) (Node x y)
-    in (cons13 ((z,B0):a) c,q')
+    in SP (cons13 (SP z B0) a c) q'
+suffix0' (Cons (SP (SP (SP z (B2 x y)) zs) (Cons r rs)) xs) q = 
+    let Deque a c q' = ninject (Deque zs (Cons (SP r rs) xs) q) (Node x y)
+    in SP (cons13 (SP z B0) a c) q'
 
-suffix0 ((((z,B1 x),zs),rs):xs) q = 
-    let (c, q') = suffix0' xs q
-    in ((((z,B1 x),zs),rs):c, q')
+suffix0 (Cons (SP (SP (SP z (B1 x)) zs) rs) xs) q = 
+    let SP c q' = suffix0' xs q
+    in SP (Cons (SP (SP (SP z (B1 x)) zs) rs) c) q'
 suffix0 x y = suffix0' x y
 
-prefix2' ((((B0,z),zs),Nil):xs) q = 
-    let Some (Node x y,Deque a c q') = npop (Deque zs xs q)
-    in (cons13 ((B2 x y,z):a) c, q') 
-prefix2' ((((B0,z),zs),(r:rs)):xs) q = 
-    let Some (Node x y,Deque a c q') = npop (Deque zs ((r,rs):xs) q)
-    in (cons13 ((B2 x y,z):a) c, q')
+prefix2' (Cons (SP (SP (SP B0 z) zs) Nil) xs) q = 
+    let Some (SP (Node x y) (Deque a c q')) = npop (Deque zs xs q)
+    in SP (cons13 (SP (B2 x y) z) a c) q' 
+prefix2' (Cons (SP (SP (SP B0 z) zs) (Cons r rs)) xs) q = 
+    let Some (SP (Node x y) (Deque a c q')) = npop (Deque zs (Cons (SP r rs) xs) q)
+    in SP (cons13 (SP (B2 x y) z) a c) q' 
 
-prefix2 ((((B1 x,z),zs),rs):xs) q = 
-    let (c, q') = prefix2' xs q
-    in ((((B1 x,z),zs),rs):c, q')
+prefix2 (Cons (SP (SP (SP (B1 x) z) zs) rs) xs) q = 
+    let (SP c q') = prefix2' xs q
+    in SP (Cons (SP (SP (SP (B1 x) z) zs) rs) c) q'
 prefix2 x y = prefix2' x y
 
-suffix2' ((((z,B0),zs),Nil):xs) q = 
-    let Some (Deque a c q',Node x y) = neject (Deque zs xs q)
-    in (cons13 ((z,B2 x y):a) c, q')
-suffix2' ((((z,B0),zs),(r:rs)):xs) q = 
-    let Some (Deque a c q',Node x y) = neject (Deque zs ((r,rs):xs) q)
-    in (cons13 ((z,B2 x y):a) c, q')
+suffix2' (Cons (SP (SP (SP z B0) zs) Nil) xs) q = 
+    let Some (SP (Deque a c q') (Node x y)) = neject (Deque zs xs q)
+    in SP (cons13 (SP z (B2 x y)) a c) q' 
+suffix2' (Cons (SP (SP (SP z B0) zs) (Cons r rs)) xs) q = 
+    let Some (SP (Deque a c q') (Node x y)) = neject (Deque zs (Cons (SP r rs) xs) q)
+    in SP (cons13 (SP z (B2 x y)) a c) q' 
 
-suffix2 ((((z,B1 x),zs),rs):xs) q = 
-    let (c,q') = suffix2' xs q
-    in ((((z,B1 x),zs),rs):c, q')
+suffix2 (Cons (SP (SP (SP z (B1 x)) zs) rs) xs) q = 
+    let (SP c q') = suffix2' xs q
+    in SP (Cons (SP (SP (SP z (B1 x)) zs) rs) c) q'
 suffix2 x y = suffix2' x y
 
 fixHelp f (Deque b c d) = 
-    let (c',d') = f c d
+    let SP c' d' = f c d
     in Deque b c' d'
 
 data Size = S0 | S1 | S2 deriving (Show)
 
 prepose' (Deque _ Nil _) = S1
-prepose' (Deque _ ((((B0,_),_),_):_) _) = S0
-prepose' (Deque _ ((((B2 _ _,_),_),_):_) _) = S2
+prepose' (Deque _ (Cons (SP (SP (SP B0{} _) _) _) _) _) = S0
+prepose' (Deque _ (Cons (SP (SP (SP B2{} _) _) _) _) _) = S2
 
-prepose (Deque p ((((B1 _,_),_),_):xs) q) = prepose' (Deque p xs q)
+prepose (Deque p (Cons (SP (SP (SP B1{} _) _) _) xs) q) = prepose' (Deque p xs q)
 prepose x = prepose' x
 
 sufpose' (Deque _ Nil _) = S1
-sufpose' (Deque _ ((((_,B0),_),_):_) _) = S0
-sufpose' (Deque _ ((((_,B2 _ _),_),_):_) _) = S2
+sufpose' (Deque _ (Cons (SP (SP (SP _ B0{}) _) _) _) _) = S0
+sufpose' (Deque _ (Cons (SP (SP (SP _ B2{}) _) _) _) _) = S2
 
-sufpose (Deque p ((((_,B1 _),_),_):xs) q) = sufpose' (Deque p xs q)
+sufpose' (Deque p (Cons (SP (SP (SP _ B1{}) _) _) xs) q) = sufpose' (Deque p xs q)
 sufpose x = sufpose' x
 
 push x xs =
@@ -200,17 +200,18 @@ pop xs =
                 S0 -> npop (fixHelp prefix2 xs)
                 _ -> npop xs
     in case ans of
-         None -> None
-         Some (Leaf y,ys) -> Some (y,ys)
+         None -> Nothing
+         Some (SP (Leaf y) ys) -> Just (y,ys)
 
 eject xs =
     let ans = case sufpose xs of
                 S0 -> neject (fixHelp suffix2 xs)
                 _ -> neject xs
     in case ans of
-         None -> None
-         Some (ys,Leaf y) -> Some (ys,y)
+         None -> Nothing
+         Some (SP ys (Leaf y)) -> Just (ys,y)
 
+{-
 -----------------------------------
 
 fromList = foldr push empty

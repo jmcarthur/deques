@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, StandaloneDeriving #-}
+{-# LANGUAGE GADTs, StandaloneDeriving, RankNTypes #-}
 
 module ThreeDequeGADT where
 
@@ -92,6 +92,8 @@ showDeque f (Deque x y z) =
 
 instance Show a => Show (Deque a) where
     show = showDeque show
+
+invariants x = bottomOK x && allShape x && bufsAlternate x
 
 data Size = Small | Medium | Large
 
@@ -205,6 +207,16 @@ npush x (Deque M0 (Full (NE (Stack (B1 y) z zs) Empty) xs) q) = Deque M0 (Full (
 npush x (Deque M0 (Full (NE (Stack (B1 y) z zs) (Full r rs)) xs) q) = Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) (Full (NE r rs) xs)) q
 npush x (Deque (MS y z zs) rs q) = Deque M0 (cons13 (B2 x y) (B1 z) zs rs) q
 
+ninject :: Deque a -> a -> Deque a
+ninject (Deque M0 Empty None) x = Deque M0 Empty (Some x)
+ninject (Deque M0 Empty (Some y)) x = Deque (MS y x M0) Empty None
+ninject (Deque M0 (Full (NE (Stack (B1 z) B0 zs) Empty) xs) q) x = Deque (MS z x zs) xs q
+ninject (Deque M0 (Full (NE (Stack (B1 z) B0 zs) (Full y ys)) xs) q) x = Deque (MS z x zs) (Full (NE y ys) xs) q
+ninject (Deque M0 (Full (NE (Stack z B0 zs) Empty) xs) q) x = Deque M0 (cons13 z (B1 x) zs xs) q 
+ninject (Deque M0 (Full (NE (Stack z (B1 y) zs) Empty) xs) q) x = Deque M0 (Full (NE (Stack z (B2 y x) zs) Empty) xs) q 
+ninject (Deque M0 (Full (NE (Stack z (B1 y) zs) (Full r rs)) xs) q) x = Deque M0 (Full (NE (Stack z (B2 y x) zs) Empty) (Full (NE r rs) xs)) q
+ninject (Deque (MS z y zs) rs q) x = Deque M0 (cons13 (B1 z) (B2 y x) zs rs) q
+
 data Back a where
     Back :: !(ThreeStack a b) -> !(SM b) -> Back a
 
@@ -222,23 +234,50 @@ prefix0 (Full (NE (Stack (B1 x) z zs) rs) xs) q =
       Back c q' -> Back (Full (NE (Stack (B1 x) z zs) rs) c) q'
 prefix0 x y = prefix0' x y
 
-{-
-cons13 x y xs r@(Full (Multiple (Stack p q pq)) rs) = 
-    let Just i = topCheck x y
-        Just j = topCheck p q
-    in if nextTop1 i j
-       then Full (Multiple (Stack x y xs) (Single (Stack p q pq))) rs
-       else Full (Single (Stack x y xs)) r
--}
-{-SP (SP c cs) bs) as) = 
-    let Just p = topCheck x
-        Just q = topCheck c
-    in if nextTop1 p q
-       then Cons (SP (SP x xs)  (Cons (SP c cs) bs)) as
-       else Cons (SP (SP x xs) Nil) r
--}{-
-empty = Deque Nil Nil None
--}
+suffix0' :: ThreeStack a b -> SM b -> Back a
+suffix0' (Full (NE (Stack z (B2 x y) zs) Empty) xs) q = 
+    case ninject (Deque zs xs q) (Both x y) of
+       Deque a c q' -> Back (cons13 z B0 a c) q'
+suffix0' (Full (NE (Stack z (B2 x y) zs) (Full r rs)) xs) q = 
+    case ninject (Deque zs (Full (NE r rs) xs) q) (Both x y) of
+       Deque a c q' -> Back (cons13 z B0 a c) q'
+
+suffix0 :: ThreeStack a b -> SM b -> Back a
+suffix0 (Full (NE (Stack z (B1 x) zs) rs) xs) q = 
+    case suffix0' xs q of
+      Back c q' -> Back (Full (NE (Stack z (B1 x) zs) rs) c) q'
+suffix0 x y = suffix0' x y
+
+fixHelp :: (forall a b . ThreeStack a b -> SM b -> Back a) -> Deque t -> Deque t
+fixHelp f (Deque b c d) = 
+    case f c d of
+      Back c' d' -> Deque b c' d'
+
+prepose' :: ThreeStack a b -> Size
+prepose' Empty = Medium
+prepose' (Full (NE (Stack B0{} _ _) _) _) = Small
+prepose' (Full (NE (Stack B2{} _ _) _) _) = Large
+
+prepose (Deque _ (Full (NE (Stack B1{} _ _) _) x) _) = prepose' x
+prepose (Deque _ x _) = prepose' x
+
+sufpose' :: ThreeStack a b -> Size
+sufpose' Empty = Medium
+sufpose' (Full (NE (Stack _ B0{} _) _) _) = Small
+sufpose' (Full (NE (Stack _ B2{} _) _) _) = Large
+
+sufpose (Deque _ (Full (NE (Stack _ B1{} _) _) x) _) = sufpose' x
+sufpose (Deque _ x _) = sufpose' x
+
+push x xs =
+    case prepose xs of
+      Large -> npush x (fixHelp prefix0 xs)
+      _  -> npush x xs
+
+inject xs x =
+    case sufpose xs of
+      Large -> ninject (fixHelp suffix0 xs) x
+      _  -> ninject xs x
 
 {-
 data Buffer a s where

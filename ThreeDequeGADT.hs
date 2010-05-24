@@ -230,6 +230,19 @@ npop (Deque M0 (Full (NE (Stack (B1 y) z zs) (Full r rs)) xs) q) = Just (y,Deque
 npop (Deque (MS y z M0) Empty None) = Just (y,Deque M0 Empty (Some z))
 npop (Deque (MS y z zs) rs q) = Just (y,Deque M0 (cons13 B0 (B1 z) zs rs) q)
 
+neject :: Deque a -> Maybe (Deque a,a)
+neject (Deque M0 Empty None) = Nothing
+neject (Deque M0 Empty (Some y)) = Just (empty,y)
+neject (Deque M0 (Full (NE (Stack (B1 x) (B2 z y) zs) Empty) xs) q) = Just (Deque (MS x z zs) xs q,y)
+neject (Deque M0 (Full (NE (Stack (B1 x) (B2 z y) zs) (Full r rs)) xs) q) = Just (Deque (MS x z zs) (Full (NE r rs) xs) q, y)
+neject (Deque M0 (Full (NE (Stack z (B2 x y) zs) Empty) xs) q) = Just (Deque M0 (cons13 z (B1 x) zs xs) q, y)
+neject (Deque M0 (Full (NE (Stack (B2 x z) (B1 y) M0) Empty) Empty) None) = Just (Deque (MS x z M0) Empty None, y)
+neject (Deque M0 (Full (NE (Stack B0 (B1 y) M0) Empty) Empty) (Some (Both x z))) = Just (Deque (MS x z M0) Empty None, y)
+neject (Deque M0 (Full (NE (Stack z (B1 y) zs) Empty) xs) q) = Just (Deque M0 (Full (NE (Stack z B0 zs) Empty) xs) q, y)
+neject (Deque M0 (Full (NE (Stack z (B1 y) zs) (Full r rs)) xs) q) = Just (Deque M0 (Full (NE (Stack z B0 zs) Empty) (Full (NE r rs) xs)) q, y)
+neject (Deque (MS z y M0) Empty None) = Just (Deque M0 Empty (Some z), y)
+neject (Deque (MS z y zs) rs q) = Just (Deque M0 (cons13 (B1 z) B0 zs rs) q, y)
+
 data Back a where
     Back :: !(ThreeStack a b) -> !(SM b) -> Back a
 
@@ -277,6 +290,22 @@ prefix2 (Full (NE (Stack (B1 x) z zs) rs) xs) q =
           Back (Full (NE (Stack (B1 x) z zs) rs) c) q'
 prefix2 x y = prefix2' x y
 
+suffix2' :: ThreeStack a b -> SM b -> Back a
+suffix2' (Full (NE (Stack z B0 zs) Empty) xs) q = 
+    case neject (Deque zs xs q) of
+      Just (Deque a c q',Both x y) ->
+          Back (cons13 z (B2 x y) a c) q' 
+suffix2' (Full (NE (Stack z B0 zs) (Full r rs)) xs) q = 
+    case neject (Deque zs (Full (NE r rs) xs) q) of
+      Just (Deque a c q',Both x y) ->
+          Back (cons13 z (B2 x y) a c) q' 
+
+suffix2 (Full (NE (Stack z (B1 x) zs) rs) xs) q = 
+    case suffix2' xs q of
+      Back c q' ->
+          Back (Full (NE (Stack z (B1 x) zs) rs) c) q'
+suffix2 x y = suffix2' x y
+
 fixHelp :: (forall a b . ThreeStack a b -> SM b -> Back a) -> Deque t -> Deque t
 fixHelp f (Deque b c d) = 
     case f c d of
@@ -312,6 +341,11 @@ pop xs =
     case prepose xs of
       Small -> npop (fixHelp prefix2 xs)
       _ -> npop xs
+
+eject xs =
+    case sufpose xs of
+      Small -> neject (fixHelp suffix2 xs)
+      _ -> neject xs
 
 {-
 data Buffer a s where

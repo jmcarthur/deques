@@ -385,6 +385,13 @@ Ltac desall :=
         | Suffix => _
         | Twofix => _
       end]] => equate H x; cutThis x; desall
+    | [ H:_,
+        _:context[
+      match ?x with
+        | Prefix => _
+        | Suffix => _
+        | Twofix => _
+      end] |- _] => equate H x; cutThis x; desall
     | _ => idtac
   end.
 
@@ -547,39 +554,25 @@ Proof.
   destruct xs; crush.
   desall.
   destruct H0; desall.
+  destruct H0; desall; destruct n; desall.
   destruct H0; desall.
   destruct n; desall.
   destruct n; desall.
-  destruct H0; desall.
   destruct n; desall.
-  destruct n; desall.
-  destruct t; desall.
-  destruct s0; desall.
-  destruct s0; desall.
-  destruct t1; desall.
-  destruct n; desall.
-  destruct t; desall.
 
   destruct H0; desall;
     destruct n; desall;
       destruct m0; desall.
-  try (destruct t); try (destruct t0); try (destruct t1); desall.
-  try (destruct t); try (destruct t0); try (destruct t1); desall.
-  try (destruct t); try (destruct t0); try (destruct t1); desall.
-  try (destruct t); try (destruct t0); try (destruct t1); desall.
-  try (destruct t); try (destruct t0); try (destruct t1); desall.
-  try (destruct t); try (destruct t0); try (destruct t1); desall.
   destruct H0; desall;
     destruct n; desall;
       destruct m0; desall.
   destruct H0; desall;
-    destruct m0; desall.
+    destruct m; desall.
   eapply cons13shape; crush.
   destruct H0; desall;
     destruct m; desall.
   destruct H0; desall;
-    destruct H1; desall;
-      try (destruct t); try (destruct t0); try (destruct t1); desall.
+    destruct H1; desall.
 Qed.
 
 

@@ -377,6 +377,37 @@ Defined.
 Print npushHelp.
 *)
 
+Lemma bufsAlt2PreMed : 
+  forall (f:Size -> Size -> Prop) 
+    A B (M:Stuck A B) 
+    C (N:Nest Stuck B C) 
+    D E (R:ThreeStack D E) p w,
+    (forall q z, f q z -> f Medium z) ->
+    bufsAltStart2 f M N R p w ->
+    bufsAltStart2 f M N R Medium w.
+Proof.
+  intros. generalize dependent w. generalize dependent A.
+  induction N.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b; crush.
+  destruct p; crush; eauto.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b0; crush.
+Qed.
+Hint Resolve bufsAlt2PreMed.
+
+Lemma bufsAltPreMedium :
+  forall a b (t:ThreeStack a b) p q,
+    bufsAltStart t p q ->
+    bufsAltStart t Medium q.
+Proof.
+  induction t; crush.
+  destruct f; crush.
+  intros.
+  eapply bufsAlt2PreMed; eauto.
+Qed.
+Hint Resolve bufsAltPreMedium.
+
 (*
 npush :: a -> Deque a -> Deque a
 npush x (Deque M0 Empty None) = Deque M0 Empty (Some x) 
@@ -402,19 +433,17 @@ Definition npush a (x:a) (xx:Deq a) : Deq a :=
                 | Some y => Deque (MS x y M0) Empty None
               end
             | Full _ _ e xs => fun dd => 
-              match e (*in SE _ _ _ return Nest _ _ _ -> Deq a*) with
+              match e with
                 | NE _ f g =>
-                  (*fun xsxs =>*)
-                    match f (*in Stuck _ _ return Nest _ _ _ -> Deq a*) with
-                      | Stack B0 (B1 z) zs =>
-                        (*fun gg =>*)
-                          match g in Nest _ _ G return Nest _ G _ -> Deq a with
-                            | Empty => fun xsxs => Deque (MS x z zs) xsxs dd
-                            | _ => fun _ => xx
-                          end xs
-                      | _ => (*fun gg =>*) xx
-                    end (*g*)
-              end (*xs*)
+                  match f  with
+                    | Stack B0 (B1 z) zs =>
+                      match g in Nest _ _ G return Nest _ G _ -> Deq a with
+                        | Empty => fun xsxs => Deque (MS x z zs) xsxs dd
+                        | Full _ _ y ys => fun xsxs => Deque (MS x z zs) (Full (NE y ys) xsxs) dd
+                      end xs
+                    | _ => xx
+                  end
+              end
           end d
         | _ => fun cc => xx
       end c
@@ -456,37 +485,10 @@ Proof.
   destruct s0; crush. destruct s0; crush. destruct b1; crush.
 destruct b2; crush. destruct n; crush. destruct t; crush.
 desall.
+  crush. destruct t; crush.
+  desall. desall. destruct t0; crush.
+  destruct t0; crush. destruct t1; crush.
 Qed.
-
-Lemma bufsAlt2PreMed : 
-  forall (f:Size -> Size -> Prop) 
-    A B (M:Stuck A B) 
-    C (N:Nest Stuck B C) 
-    D E (R:ThreeStack D E) p w,
-    (forall q z, f q z -> f Medium z) ->
-    bufsAltStart2 f M N R p w ->
-    bufsAltStart2 f M N R Medium w.
-Proof.
-  intros. generalize dependent w. generalize dependent A.
-  induction N.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b; crush.
-  destruct p; crush; eauto.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b0; crush.
-Qed.
-
-Lemma bufsAltPreMedium :
-  forall a b (t:ThreeStack a b) p q,
-    bufsAltStart t p q ->
-    bufsAltStart t Medium q.
-Proof.
-  induction t; crush.
-  destruct f; crush.
-  intros.
-  eapply bufsAlt2PreMed.
-  destruct t; crush.
-  destruct s; crush.
 
 Lemma npushBufs :
   forall a (x:a) xs,
@@ -504,65 +506,8 @@ Proof.
   destruct b1; crush.
   destruct b2; crush.
   destruct n; crush.
-  destruct t; crush.
-  destruct s0; crush.
-
-  assert (forall (f:Size -> Size -> Prop) A B (M:Stuck A B) C (N:Nest Stuck B C) D E (R:ThreeStack D E) w,
-    (forall z, f Small z -> f Medium z) ->
-    bufsAltStart2 f M N R Small w ->
-    bufsAltStart2 f M N R Medium w) as L1.
-  clear. intros. generalize dependent w. generalize dependent A.
-  induction N.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b; crush.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b0; crush.
-  
-  eapply L1. Focus 2. auto.
-  assert (forall A B (T:ThreeStack A B) z, 
-    bufsAltStart T Small z -> bufsAltStart T Medium z).
-  induction T; crush.
-  destruct f; crush.
-  apply H3; crush.
-Qed.
-
-
-Lemma npushBufs :
-  forall a (x:a) xs,
-    prepose xs <> Large ->
-    BufsAlternate xs ->
-    BufsAlternate (npush x xs).
-Proof.
-  intros.
-  destruct xs; crush.
-  destruct m; crush.
-  destruct t; crush.
-  destruct s; crush.
-  destruct s0; crush.
-  destruct s0; crush.
-  destruct b1; crush.
-  destruct b2; crush.
-  destruct n; crush.
-  destruct t; crush.
-  destruct s0; crush.
-
-  assert (forall (f:Size -> Size -> Prop) A B (M:Stuck A B) C (N:Nest Stuck B C) D E (R:ThreeStack D E) w,
-    (forall z, f Small z -> f Medium z) ->
-    bufsAltStart2 f M N R Small w ->
-    bufsAltStart2 f M N R Medium w) as L1.
-  clear. intros. generalize dependent w. generalize dependent A.
-  induction N.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b; crush.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b0; crush.
-  
-  eapply L1. Focus 2. auto.
-  assert (forall A B (T:ThreeStack A B) z, 
-    bufsAltStart T Small z -> bufsAltStart T Medium z).
-  induction T; crush.
-  destruct f; crush.
-  apply H3; crush.
+  eauto.
+  eauto.
 Qed.
   
 npush :: a -> Deque a -> Deque a

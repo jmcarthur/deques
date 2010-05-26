@@ -9,6 +9,12 @@ Inductive MStack a : Type -> Type :=
   M0 : MStack a a
 | MS : forall b, a -> a -> MStack (Both a) b -> MStack a b.
 
+Set Maximal Implicit Insertion.
+Implicit Arguments M0 [a].
+Implicit Arguments MS [a b].
+Unset Maximal Implicit Insertion.
+
+
 Inductive Buffer a := 
   B0
 | B1: a -> Buffer a
@@ -40,6 +46,10 @@ Definition ThreeStack := Nest StackStack.
 Inductive SM a :=
   None
 | Some : a -> SM a.
+
+Set Maximal Implicit Insertion.
+Implicit Arguments None [a].
+Unset Maximal Implicit Insertion.
 
 Inductive Deq a :=
  Deque : forall b c, MStack a b -> ThreeStack b c -> SM c -> Deq a.
@@ -124,7 +134,7 @@ Inductive Top := Prefix | Suffix | Twofix.
 
 Definition topCheck t (x y:Buffer t) :=
   match x,y with
-    | B1 _, B1 _ => None _
+    | B1 _, B1 _ => None
     | B0, B1 _ => Some Prefix
     | B2 _ _, B1 _ => Some Prefix
     | B1 _, B0 => Some Suffix
@@ -159,8 +169,8 @@ Fixpoint top2' a b (x:Stuck a b) c (yys:Nest Stuck b c) {struct yys} :=
         | Some v, Some w =>
           if nextTop1 v w
             then Some v
-            else None _
-        | _,_ => None _
+            else None
+        | _,_ => None
       end
   end.
 
@@ -176,9 +186,9 @@ Fixpoint top3 a b (x:StackStack a b) d e (yys:ThreeStack d e) {struct yys} :=
       match top2 x, top3 y ys with
         | Some v, Some w =>
           if nextTop1 v w
-            then None _
+            then None
             else Some v
-        | _,_ => None _
+        | _,_ => None
       end
   end.
 
@@ -245,26 +255,6 @@ Definition BottomOK a (x:Deq a) :=
 
 Definition invariants a (x:Deq a) := BottomOK x /\ allShape x /\ BufsAlternate x.
 
-(*
-Definition cons13 a (x y:Buffer a) b (xs:MStack (Both a) b) c (t:ThreeStack b c) : ThreeStack a c.
-intros.
-remember t as tr.
-destruct t.
-eapply Full. 
-  eapply NE. 
-    apply Stack. apply x. apply y. apply xs.
-    apply Empty.
-    apply Empty.
-eapply Full.
-  eapply NE.
-    apply Stack. apply x. apply y. apply xs.
-    apply Empty.
-    apply tr.
-Defined.
-
-Print cons13.
-*)
-
 Definition cons13 a (x y:Buffer a) b (xs:MStack (Both a) b) c (t:ThreeStack b c) : ThreeStack a c := 
     match t with
       | Empty => Full (NE (Stack x y xs) Empty) Empty
@@ -303,6 +293,7 @@ Ltac crush :=
         => rewrite <- H; crush
       | [H:false = true |- _] => inversion H
       | [H:true = false |- _] => inversion H
+      | [H: _ /\ _ |- _] => destruct H; crush
       | _ => idtac
     end.
 
@@ -354,18 +345,163 @@ Proof.
   cutThis i; cutThis t0; cutThis t1; crush.
   cutThis i; cutThis t0; cutThis t1; cutThis t2; crush.
 Qed.
-    
-cons13 :: Buffer a -> Buffer a -> MStack (Both a) b -> ThreeStack b c -> ThreeStack a c
-cons13 x y xs Empty = Full (NE (Stack x y xs) Empty) Empty
-cons13 x y xs t@(Full (NE (Stack p q pq) r) s) =
-    let Just i = topCheck x y
-        Just j = topCheck p q 
-    in if nextTop1 i j
-       then Full (NE (Stack x y xs) (Full (Stack p q pq) r)) s
-       else Full (NE (Stack x y xs) Empty) t
 
-empty = Deque M0 Empty None
+Definition empty {a} := Deque M0 Empty (@None a).
 
+Definition prepose' a b (x:ThreeStack a b) :=
+  let default := Medium in 
+    match x with
+      | Empty => Medium
+      | Full _ _ (NE _ (Stack B0 _ _) _) _ => Small
+      | Full _ _ (NE _ (Stack (B2 _ _) _ _) _) _ => Large
+      | _ => default
+    end.
+
+Definition prepose a (x:Deq a) :=
+  match x with
+    | Deque _ _ _ (Full _ _ (NE _ (Stack (B1 _) _ _) _) x) _ => prepose' x
+    | Deque _ _ _ x _ => prepose' x
+  end.
+
+(*
+Definition npushHelp a (x:a) (xx:Deq a) : Deq a.
+intros.
+destruct xx.
+destruct m. destruct t. destruct s.
+eapply Deque. apply M0. apply Empty. apply Some. exact x.
+eapply Deque. apply MS. exact x. exact a0. apply M0. apply Empty. apply None.
+apply empty.
+apply empty.
+Defined.
+
+Print npushHelp.
+*)
+
+(*
+npush :: a -> Deque a -> Deque a
+npush x (Deque M0 Empty None) = Deque M0 Empty (Some x) 
+npush x (Deque M0 Empty (Some y)) = Deque (MS x y M0) Empty None 
+npush x (Deque M0 (Full (NE (Stack B0 (B1 z) zs) Empty) xs) q) = Deque (MS x z zs) xs q 
+npush x (Deque M0 (Full (NE (Stack B0 (B1 z) zs) (Full y ys)) xs) q) = Deque (MS x z zs) (Full (NE y ys) xs) q 
+npush x (Deque M0 (Full (NE (Stack B0 z zs) Empty) xs) q) = Deque M0 (cons13 (B1 x) z zs xs) q
+npush x (Deque M0 (Full (NE (Stack (B1 y) z zs) Empty) xs) q) = Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) xs) q
+npush x (Deque M0 (Full (NE (Stack (B1 y) z zs) (Full r rs)) xs) q) = Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) (Full (NE r rs) xs)) q
+npush x (Deque (MS y z zs) rs q) = Deque M0 (cons13 (B2 x y) (B1 z) zs rs) q
+*)
+
+Definition npush a (x:a) (xx:Deq a) : Deq a :=
+  match xx with
+    | Deque _ _ b c d =>
+      match b in MStack _ B return ThreeStack B _ -> Deq a with
+        | M0 => fun cc =>
+          match cc in Nest _ _ C return SM C -> Deq a with
+            | Empty =>
+              fun dd =>
+              match dd with
+                | None => Deque M0 Empty (Some x)
+                | Some y => Deque (MS x y M0) Empty None
+              end
+            | Full _ _ e xs => fun dd => 
+              match e (*in SE _ _ _ return Nest _ _ _ -> Deq a*) with
+                | NE _ f g =>
+                  (*fun xsxs =>*)
+                    match f (*in Stuck _ _ return Nest _ _ _ -> Deq a*) with
+                      | Stack B0 (B1 z) zs =>
+                        (*fun gg =>*)
+                          match g in Nest _ _ G return Nest _ G _ -> Deq a with
+                            | Empty => fun xsxs => Deque (MS x z zs) xsxs dd
+                            | _ => fun _ => xx
+                          end xs
+                      | _ => (*fun gg =>*) xx
+                    end (*g*)
+              end (*xs*)
+          end d
+        | _ => fun cc => xx
+      end c
+  end.
+
+Lemma npushBottom : 
+  forall a (x:a) xs,
+    BottomOK xs ->
+    BottomOK (npush x xs).
+Proof.
+  intros.
+  destruct xs; crush.
+  destruct s; crush.
+  destruct t; crush.
+  destruct m; crush.
+
+  destruct m; crush.
+  destruct s; crush.
+  destruct s; crush. 
+  destruct b1; crush.
+  destruct b2; crush.
+  destruct n; crush.
+  destruct t; crush.
+
+  destruct m; crush.
+  destruct t; crush.
+  destruct s; crush.
+  destruct s; crush. 
+  destruct b1; crush.
+  destruct b2; crush.
+  destruct n; crush.
+  destruct t; crush.
+Qed.
+
+Lemma npushShape :
+  forall a (x:a) xs,
+    allShape xs ->
+    allShape (npush x xs).
+Proof.
+  intros.
+  destruct xs; crush.
+  destruct m; crush.
+  destruct t; crush.
+  destruct s; crush.
+  destruct s0; crush. destruct s0; crush. destruct b1; crush.
+destruct b2; crush. destruct n; crush. destruct t; crush.
+desall.
+Qed.
+
+Lemma npushBufs :
+  forall a (x:a) xs,
+    prepose xs <> Large ->
+    BufsAlternate xs ->
+    BufsAlternate (npush x xs).
+Proof.
+  intros.
+  destruct xs; crush.
+  destruct m; crush.
+  destruct t; crush.
+  destruct s; crush.
+  destruct s0; crush.
+  destruct s0; crush.
+  destruct b1; crush.
+  destruct b2; crush.
+  destruct n; crush.
+  destruct t; crush.
+  destruct s0; crush.
+
+  assert (forall (f:Size -> Size -> Prop) A B (M:Stuck A B) C (N:Nest Stuck B C) D E (R:ThreeStack D E) w,
+    (forall z, f Small z -> f Medium z) ->
+    bufsAltStart2 f M N R Small w ->
+    bufsAltStart2 f M N R Medium w) as L1.
+  clear. intros. generalize dependent w. generalize dependent A.
+  induction N.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b; crush.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b0; crush.
+  
+  eapply L1. Focus 2. auto.
+  assert (forall A B (T:ThreeStack A B) z, 
+    bufsAltStart T Small z -> bufsAltStart T Medium z).
+  induction T; crush.
+  destruct f; crush.
+  apply H3; crush.
+Qed.
+  
 npush :: a -> Deque a -> Deque a
 npush x (Deque M0 Empty None) = Deque M0 Empty (Some x) 
 npush x (Deque M0 Empty (Some y)) = Deque (MS x y M0) Empty None 
@@ -479,14 +615,6 @@ fixHelp :: (forall a b . ThreeStack a b -> SM b -> Back a) -> Deque t -> Deque t
 fixHelp f (Deque b c d) = 
     case f c d of
       Back c' d' -> Deque b c' d'
-
-prepose' :: ThreeStack a b -> Size
-prepose' Empty = Medium
-prepose' (Full (NE (Stack B0{} _ _) _) _) = Small
-prepose' (Full (NE (Stack B2{} _ _) _) _) = Large
-
-prepose (Deque _ (Full (NE (Stack B1{} _ _) _) x) _) = prepose' x
-prepose (Deque _ x _) = prepose' x
 
 sufpose' :: ThreeStack a b -> Size
 sufpose' Empty = Medium

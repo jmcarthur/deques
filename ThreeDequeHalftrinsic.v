@@ -614,6 +614,7 @@ Qed.
 Lemma npushBufs :
   forall a (x:a) xs,
     prepose xs <> Large ->
+    allShape xs ->
     BufsAlternate xs ->
     BufsAlternate (npush x xs).
 Proof.
@@ -627,8 +628,22 @@ Proof.
   destruct b1; crush.
   destruct b2; crush.
   destruct n; crush.
+  desall.
+  destruct t; crush.
+  destruct s0; crush.
+  destruct s0; crush.
+  desall. repeat split; crush.
   eauto.
+  destruct t1; crush; repeat split; crush; eauto.
+  destruct n; crush. eauto. eauto.
+  destruct n; crush.
+  desall.
+  destruct t; crush.
+  destruct s0; crush.
+  destruct s0; crush.
+  desall. repeat split; crush.
   eauto.
+  destruct t1; crush; repeat split; crush; eauto.
 Qed.
   
 npush :: a -> Deque a -> Deque a

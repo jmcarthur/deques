@@ -420,6 +420,7 @@ Definition npush a (x:a) (xx:Deq a) : Deq a :=
       end c
   end.
 
+
 Lemma npushBottom : 
   forall a (x:a) xs,
     BottomOK xs ->
@@ -427,26 +428,19 @@ Lemma npushBottom :
 Proof.
   intros.
   destruct xs; crush.
-  destruct s; crush.
+  destruct m; crush.
   destruct t; crush.
-  destruct m; crush.
-
-  destruct m; crush.
   destruct s; crush.
-  destruct s; crush. 
+
+  destruct s0; crush.
+  destruct s0; crush.
   destruct b1; crush.
   destruct b2; crush.
   destruct n; crush.
+  destruct s; crush.
+  destruct t; crush.
   destruct t; crush.
 
-  destruct m; crush.
-  destruct t; crush.
-  destruct s; crush.
-  destruct s; crush. 
-  destruct b1; crush.
-  destruct b2; crush.
-  destruct n; crush.
-  destruct t; crush.
 Qed.
 
 Lemma npushShape :
@@ -463,6 +457,75 @@ Proof.
 destruct b2; crush. destruct n; crush. destruct t; crush.
 desall.
 Qed.
+
+Lemma bufsAlt2PreMed : 
+  forall (f:Size -> Size -> Prop) 
+    A B (M:Stuck A B) 
+    C (N:Nest Stuck B C) 
+    D E (R:ThreeStack D E) p w,
+    (forall q z, f q z -> f Medium z) ->
+    bufsAltStart2 f M N R p w ->
+    bufsAltStart2 f M N R Medium w.
+Proof.
+  intros. generalize dependent w. generalize dependent A.
+  induction N.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b; crush.
+  destruct p; crush; eauto.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b0; crush.
+Qed.
+
+Lemma bufsAltPreMedium :
+  forall a b (t:ThreeStack a b) p q,
+    bufsAltStart t p q ->
+    bufsAltStart t Medium q.
+Proof.
+  induction t; crush.
+  destruct f; crush.
+  intros.
+  eapply bufsAlt2PreMed.
+  destruct t; crush.
+  destruct s; crush.
+
+Lemma npushBufs :
+  forall a (x:a) xs,
+    prepose xs <> Large ->
+    BufsAlternate xs ->
+    BufsAlternate (npush x xs).
+Proof.
+  intros.
+  destruct xs; crush.
+  destruct m; crush.
+  destruct t; crush.
+  destruct s; crush.
+  destruct s0; crush.
+  destruct s0; crush.
+  destruct b1; crush.
+  destruct b2; crush.
+  destruct n; crush.
+  destruct t; crush.
+  destruct s0; crush.
+
+  assert (forall (f:Size -> Size -> Prop) A B (M:Stuck A B) C (N:Nest Stuck B C) D E (R:ThreeStack D E) w,
+    (forall z, f Small z -> f Medium z) ->
+    bufsAltStart2 f M N R Small w ->
+    bufsAltStart2 f M N R Medium w) as L1.
+  clear. intros. generalize dependent w. generalize dependent A.
+  induction N.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b; crush.
+  crush. destruct M; crush. repeat split; crush.
+  destruct b0; crush.
+  
+  eapply L1. Focus 2. auto.
+  assert (forall A B (T:ThreeStack A B) z, 
+    bufsAltStart T Small z -> bufsAltStart T Medium z).
+  induction T; crush.
+  destruct f; crush.
+  apply H3; crush.
+Qed.
+
 
 Lemma npushBufs :
   forall a (x:a) xs,

@@ -1,4 +1,5 @@
 Set Implicit Arguments.
+(*Set Maximal Implicit Insertion.*)
 (*Set Contextual Implicit.*)
 (*Unset Strict Implicit.*)
 
@@ -20,8 +21,17 @@ Inductive Nest f a : Type -> Type :=
   Empty : Nest f a a
 | Full : forall b c, f a b -> Nest f b c -> Nest f a c.
 
+Set Maximal Implicit Insertion.
+Implicit Arguments Empty [f a].
+Implicit Arguments Full [f a b c].
+Unset Maximal Implicit Insertion.
+
 Inductive SE f a c :=
   NE : forall b, f a b -> Nest f b c -> SE f a c.
+
+Set Maximal Implicit Insertion.
+Implicit Arguments NE [f a b c].
+Unset Maximal Implicit Insertion.
 
 Definition StackStack := SE Stuck.
 
@@ -63,6 +73,7 @@ Definition SameSize x y :=
     | _,_ => False
   end.
 
+(*
 Inductive BufsAltStart (xs ys:Size) 
   : forall a b, ThreeStack a b -> Prop :=
     Stop : forall a, BufsAltStart xs ys (Empty _ a)
@@ -80,6 +91,7 @@ Inductive BufsAltStart (xs ys:Size)
                  (nextSize ys (bufSize y))
                  (Full _ (@NE Stuck za zc zb z zs) r) ->
     BufsAltStart xs ys (Full _ (NE _ (Stack x y q) (Full za z zs)) r).
+*)
 
 Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuck b c) d e (r:ThreeStack d e) (xs ys:Size) :=
   match m with
@@ -232,6 +244,126 @@ Definition BottomOK a (x:Deq a) :=
   end.
 
 Definition invariants a (x:Deq a) := BottomOK x /\ allShape x /\ BufsAlternate x.
+
+(*
+Definition cons13 a (x y:Buffer a) b (xs:MStack (Both a) b) c (t:ThreeStack b c) : ThreeStack a c.
+intros.
+remember t as tr.
+destruct t.
+eapply Full. 
+  eapply NE. 
+    apply Stack. apply x. apply y. apply xs.
+    apply Empty.
+    apply Empty.
+eapply Full.
+  eapply NE.
+    apply Stack. apply x. apply y. apply xs.
+    apply Empty.
+    apply tr.
+Defined.
+
+Print cons13.
+*)
+
+Definition cons13 a (x y:Buffer a) b (xs:MStack (Both a) b) c (t:ThreeStack b c) : ThreeStack a c := 
+    match t with
+      | Empty => Full (NE (Stack x y xs) Empty) Empty
+      | Full _ _ (NE _ (Stack p q pq) r) s => 
+        let t' := Full (NE (Stack p q pq) r) s in
+          let default := Full (NE (Stack x y xs) Empty) t' in 
+        match topCheck x y, topCheck p q with
+          | Some i, Some j => 
+            if nextTop1 i j
+              then Full (NE (Stack x y xs) (Full (Stack p q pq) r)) s
+              else Full (NE (Stack x y xs) Empty) t'
+          | _,_ => default
+        end
+    end.
+
+Lemma cons13shape : 
+  forall a (x y:Buffer a)
+    b (xs:MStack (Both a) b)
+    c (t:ThreeStack b c)
+    i,
+    Some i = topCheck x y ->
+    topShape t ->
+    topShape (cons13 x y xs t).
+Proof.
+  intros.
+  unfold cons13.
+  rewrite <- H; simpl in *.
+  destruct t; simpl in *.
+  rewrite <- H; auto.
+  destruct s; simpl in *.
+  destruct s; simpl in *.
+  simpl in H0.
+  destruct t in *; simpl in *.
+  destruct n; simpl in *.
+  remember (topCheck b2 b3) as bb; destruct bb.
+  inversion H0. 
+  remember (nextTop1 i t) as it; destruct it; simpl in *.
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  rewrite <- Heqit; auto.
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  rewrite <- Heqit; auto.
+  remember (topCheck b2 b3) as bb; destruct bb.
+  inversion H0. 
+  remember (nextTop1 i t) as it; destruct it; simpl in *.
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  remember (top2' s n) as sn; destruct sn; simpl in *.
+  inversion H0.
+  remember (nextTop1 t t0) as tt; destruct tt; simpl in *; auto.
+  rewrite <- Heqit; auto.
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  remember (top2' s n) as sn; destruct sn; simpl in *; auto.
+  remember (nextTop1 t t0) as tt; destruct tt; simpl in *; auto.
+  rewrite <- Heqit; auto.
+  destruct n; simpl in *.
+  remember (topCheck b2 b3) as bb; destruct bb.
+  inversion H0. 
+  remember (nextTop1 i t0) as it; destruct it; simpl in *.
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  rewrite <- Heqit; auto.
+  remember (top3 s t) as st; destruct st; simpl in *; auto.
+  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *.
+  inversion H0.
+  remember (nextTop1 i t1) as is; destruct is; simpl in *; auto.
+  destruct i; destruct t0; destruct t1; simpl in *; auto;
+    try (inversion Heqtt); try (inversion Heqit); try (inversion Heqis).
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  remember (top3 s t) as st; destruct st; simpl in *; auto.
+  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *.
+  inversion H0.
+  rewrite <- Heqit; auto.
+  remember (topCheck b2 b3) as bb; destruct bb.
+  inversion H0. 
+  remember (nextTop1 i t0) as it; destruct it; simpl in *.
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  remember (top2' s0 n) as sn; destruct sn; simpl in *.
+  inversion H0.
+  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *; auto.
+  rewrite <- Heqit; auto.
+  remember (top3 s t) as st; destruct st; simpl in *; auto.
+  remember (nextTop1 t0 t2) as dd; destruct dd; simpl in *; auto.
+  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
+  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
+  destruct i; destruct t0; destruct t2; simpl in *; auto;
+    try (inversion Heqdd); try (inversion Heqit); try (inversion Heqid).
+  rewrite <- H; rewrite <- Heqbb; simpl in *.
+  remember (top2' s0 n) as sn; destruct sn; simpl in *.
+  inversion H0.
+  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *; auto.
+  remember (top3 s t) as st; destruct st; simpl in *; auto.
+  remember (nextTop1 t0 t2) as dd; destruct dd; simpl in *; auto.
+  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
+  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
+  destruct i; destruct t0; destruct t2; simpl in *; auto;
+    try (inversion Heqdd); try (inversion Heqit); try (inversion Heqid).
+  rewrite <- Heqit; auto.
+  rewrite <- Heqit; auto.
+Qed.
+
+    
 
 cons13 :: Buffer a -> Buffer a -> MStack (Both a) b -> ThreeStack b c -> ThreeStack a c
 cons13 x y xs Empty = Full (NE (Stack x y xs) Empty) Empty

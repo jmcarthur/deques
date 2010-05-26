@@ -280,6 +280,32 @@ Definition cons13 a (x y:Buffer a) b (xs:MStack (Both a) b) c (t:ThreeStack b c)
         end
     end.
 
+Ltac cutThis x :=
+  let xx := fresh
+    in remember x as xx; destruct xx.
+
+Ltac crush :=
+  simpl in *; auto;
+    match goal with
+      | [F:False |- _] => inversion F
+      | [H:Some _ = ?x 
+        |- context[
+          match ?x with 
+            | None => _ 
+            | Some _ => _
+          end]]
+        => rewrite <- H; crush
+      | [H:true = ?x 
+        |- context[if ?x then _ else _]]
+        => rewrite <- H; crush
+      | [H:false = ?x 
+        |- context[if ?x then _ else _]]
+        => rewrite <- H; crush
+      | [H:false = true |- _] => inversion H
+      | [H:true = false |- _] => inversion H
+      | _ => idtac
+    end.
+
 Lemma cons13shape : 
   forall a (x y:Buffer a)
     b (xs:MStack (Both a) b)
@@ -296,75 +322,34 @@ Proof.
   rewrite <- H; auto.
   destruct s; simpl in *.
   destruct s; simpl in *.
-  simpl in H0.
-  destruct t in *; simpl in *.
-  destruct n; simpl in *.
-  remember (topCheck b2 b3) as bb; destruct bb.
-  inversion H0. 
-  remember (nextTop1 i t) as it; destruct it; simpl in *.
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  rewrite <- Heqit; auto.
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  rewrite <- Heqit; auto.
-  remember (topCheck b2 b3) as bb; destruct bb.
-  inversion H0. 
-  remember (nextTop1 i t) as it; destruct it; simpl in *.
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  remember (top2' s n) as sn; destruct sn; simpl in *.
-  inversion H0.
-  remember (nextTop1 t t0) as tt; destruct tt; simpl in *; auto.
-  rewrite <- Heqit; auto.
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  remember (top2' s n) as sn; destruct sn; simpl in *; auto.
-  remember (nextTop1 t t0) as tt; destruct tt; simpl in *; auto.
-  rewrite <- Heqit; auto.
-  destruct n; simpl in *.
-  remember (topCheck b2 b3) as bb; destruct bb.
-  inversion H0. 
-  remember (nextTop1 i t0) as it; destruct it; simpl in *.
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  rewrite <- Heqit; auto.
-  remember (top3 s t) as st; destruct st; simpl in *; auto.
-  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *.
-  inversion H0.
-  remember (nextTop1 i t1) as is; destruct is; simpl in *; auto.
-  destruct i; destruct t0; destruct t1; simpl in *; auto;
-    try (inversion Heqtt); try (inversion Heqit); try (inversion Heqis).
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  remember (top3 s t) as st; destruct st; simpl in *; auto.
-  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *.
-  inversion H0.
-  rewrite <- Heqit; auto.
-  remember (topCheck b2 b3) as bb; destruct bb.
-  inversion H0. 
-  remember (nextTop1 i t0) as it; destruct it; simpl in *.
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  remember (top2' s0 n) as sn; destruct sn; simpl in *.
-  inversion H0.
-  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *; auto.
-  rewrite <- Heqit; auto.
-  remember (top3 s t) as st; destruct st; simpl in *; auto.
-  remember (nextTop1 t0 t2) as dd; destruct dd; simpl in *; auto.
-  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
-  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
-  destruct i; destruct t0; destruct t2; simpl in *; auto;
-    try (inversion Heqdd); try (inversion Heqit); try (inversion Heqid).
-  rewrite <- H; rewrite <- Heqbb; simpl in *.
-  remember (top2' s0 n) as sn; destruct sn; simpl in *.
-  inversion H0.
-  remember (nextTop1 t0 t1) as tt; destruct tt; simpl in *; auto.
-  remember (top3 s t) as st; destruct st; simpl in *; auto.
-  remember (nextTop1 t0 t2) as dd; destruct dd; simpl in *; auto.
-  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
-  remember (nextTop1 i t2) as id; destruct id; simpl in *; auto.
-  destruct i; destruct t0; destruct t2; simpl in *; auto;
-    try (inversion Heqdd); try (inversion Heqit); try (inversion Heqid).
-  rewrite <- Heqit; auto.
-  rewrite <- Heqit; auto.
+  destruct t in *; simpl in *;
+    destruct n; simpl in *;
+      cutThis (topCheck b2 b3);
+        crush.
+  cutThis (nextTop1 i t); crush.
+  cutThis (nextTop1 i t); crush.
+  cutThis (top2' s n); crush.
+  cutThis (nextTop1 t t0); crush.
+  cutThis (top2' s n); crush.
+  cutThis (nextTop1 t t0); crush.
+  cutThis (nextTop1 i t0); crush.
+  cutThis (top3 s t); crush.
+  cutThis (nextTop1 i t1); cutThis (nextTop1 t0 t1); crush.
+  cutThis i; cutThis t0; cutThis t1; crush.
+  cutThis (top3 s t); crush.
+  cutThis (nextTop1 t0 t1); crush.
+  cutThis (nextTop1 i t0); crush.
+  cutThis (top2' s0 n); crush.
+  cutThis (nextTop1 t0 t1); crush.
+  cutThis (top3 s t); crush.
+  cutThis (nextTop1 i t2); cutThis (nextTop1 t0 t2); crush.
+  cutThis i; cutThis t0; cutThis t2; crush.
+  cutThis (top2' s0 n); crush.
+  cutThis (nextTop1 t0 t1); crush.
+  cutThis (top3 s t); crush.
+  cutThis (nextTop1 t0 t2); crush.
 Qed.
-
     
-
 cons13 :: Buffer a -> Buffer a -> MStack (Both a) b -> ThreeStack b c -> ThreeStack a c
 cons13 x y xs Empty = Full (NE (Stack x y xs) Empty) Empty
 cons13 x y xs t@(Full (NE (Stack p q pq) r) s) =

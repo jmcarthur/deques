@@ -316,14 +316,12 @@ Lemma cons13shape :
     topShape (cons13 x y xs t).
 Proof.
   intros.
-  unfold cons13.
-  rewrite <- H; simpl in *.
-  destruct t; simpl in *.
-  rewrite <- H; auto.
-  destruct s; simpl in *.
-  destruct s; simpl in *.
-  destruct t in *; simpl in *;
-    destruct n; simpl in *;
+  unfold cons13. crush.
+  destruct t; crush.
+  destruct s; crush.
+  destruct s; crush.
+  destruct t; crush;
+    destruct n; crush;
       cutThis (topCheck b2 b3);
         crush.
   cutThis (nextTop1 i t); crush.
@@ -332,21 +330,19 @@ Proof.
   cutThis (nextTop1 t t0); crush.
   cutThis (top2' s n); crush.
   cutThis (nextTop1 t t0); crush.
-  cutThis (nextTop1 i t0); crush.
-  cutThis (top3 s t); crush.
+  cutThis (nextTop1 i t0); crush;
+    cutThis (top3 s t); crush.
   cutThis (nextTop1 i t1); cutThis (nextTop1 t0 t1); crush.
   cutThis i; cutThis t0; cutThis t1; crush.
-  cutThis (top3 s t); crush.
   cutThis (nextTop1 t0 t1); crush.
-  cutThis (nextTop1 i t0); crush.
-  cutThis (top2' s0 n); crush.
-  cutThis (nextTop1 t0 t1); crush.
-  cutThis (top3 s t); crush.
+  cutThis (nextTop1 i t0); crush;
+    cutThis (top2' s0 n); crush.
+  cutThis (nextTop1 t0 t1); crush;
+    cutThis (top3 s t); crush.
   cutThis (nextTop1 i t2); cutThis (nextTop1 t0 t2); crush.
   cutThis i; cutThis t0; cutThis t2; crush.
-  cutThis (top2' s0 n); crush.
   cutThis (nextTop1 t0 t1); crush.
-  cutThis (top3 s t); crush.
+    cutThis (top3 s t); crush.
   cutThis (nextTop1 t0 t2); crush.
 Qed.
     

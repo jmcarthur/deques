@@ -81,25 +81,25 @@ Inductive BufsAltStart (xs ys:Size)
                  (Full _ (@NE Stuck za zc zb z zs) r) ->
     BufsAltStart xs ys (Full _ (NE _ (Stack x y q) (Full za z zs)) r).
 
-Fixpoint bufsAltStart2 (f:Size -> Size -> bool) a b (m:Stuck a b) c (n:Nest Stuck b c) d e (r:ThreeStack d e) (xs ys:Size) :=
+Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuck b c) d e (r:ThreeStack d e) (xs ys:Size) :=
   match m with
     | Stack x y _ =>
       let xs' := bufSize x in
         let ys' := bufSize y in
-          (negb (sameSize xs xs')
-           &&
-           negb (sameSize ys ys')
-           &&
+          (~ (SameSize xs xs')
+           /\
+           ~ (SameSize ys ys')
+           /\
            (match n with
               | Empty => f 
               | Full _ _ z zs => bufsAltStart2 f z zs r
             end) (nextSize xs xs') (nextSize ys ys')
-           )%bool
+           )
   end.
 
 Fixpoint bufsAltStart a b (r:ThreeStack a b) (xs ys:Size) :=
   match r with
-    | Empty => true
+    | Empty => True
     | Full _ _ (NE _ p ps) qs => bufsAltStart2 (bufsAltStart qs) p ps qs xs ys
   end.
 
@@ -185,29 +185,53 @@ Definition allShape a (x:Deq a) :=
     | Deque _ _ _ b _ => topShape b
   end.
 
-Fixpoint lastPair2
+Fixpoint lastPair2 (ans:Prop) (cont:Size->Size->Prop) a b (x:Stuck a b) c d (xs:Nest Stuck c d) :=
+  match xs with
+    | Empty => 
+      match x with
+        | Stack p q rs =>
+          match rs with
+            | M0 => cont (bufSize p) (bufSize q)
+            | _ => cont Medium Medium
+          end
+      end
+    | Full _ _ y ys => lastPair2 ans cont y ys
+  end.
 
-lastPair :: Bool -> (Size -> Size -> Bool) -> ThreeStack a b -> Bool
-lastPair ans cont (Full _ x@(Full _ _)) = lastPair ans cont x
-lastPair ans cont Empty = ans
-lastPair ans cont (Full (NE _ (Full x xs)) Empty) = lastPair ans cont (Full (NE x xs) Empty)
-lastPair ans cont (Full (NE (Stack x y M0) Empty) Empty) = cont (bufSize x) (bufSize y)
-lastPair ans cont (Full (NE _ Empty) Empty) = cont Medium Medium
+Fixpoint LastPair (ans:Prop) (cont:Size->Size->Prop) a b (x:ThreeStack a b)  :=
+  match x with
+    | Empty => ans
+    | Full _ _ y ys =>
+      match ys with
+        | Empty =>
+          match y with
+            | NE _ z zs => lastPair2 ans cont z zs
+          end
+        | _ => LastPair ans cont ys
+      end
+  end.
 
+Definition BottomSome x y :=
+  match x,y with
+    | Small,Small => False
+    | _,_ => True
+  end.
 
-bottomSome Small Small = False
-bottomSome _ _ = True
+Definition BottomNone x y :=
+  match x,y with
+    | Small,Small => True
+    | Small,_ => False
+    | _,Small => False
+    | _,_ => True
+  end.
 
-bottomNone Small Small = True
-bottomNone Small _ = False
-bottomNone _ Small = False
-bottomNone _ _ = True
+Definition BottomOK a (x:Deq a) :=
+  match x with
+    | Deque _ _ _ b (Some _) => LastPair True BottomSome b
+    | Deque _ _ _ b None => LastPair True BottomNone b
+  end.
 
-bottomOK :: Deque a -> Bool
-bottomOK (Deque _ b (Some _)) = lastPair True bottomSome b
-bottomOK (Deque _ b None ) = lastPair True bottomNone b
-
-invariants x = bottomOK x && allShape x && bufsAlternate x
+Definition invariants a (x:Deq a) := BottomOK x /\ allShape x /\ BufsAlternate x.
 
 cons13 :: Buffer a -> Buffer a -> MStack (Both a) b -> ThreeStack b c -> ThreeStack a c
 cons13 x y xs Empty = Full (NE (Stack x y xs) Empty) Empty

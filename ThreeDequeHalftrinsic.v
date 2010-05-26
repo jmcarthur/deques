@@ -241,7 +241,7 @@ Definition BottomSome x y :=
 
 Definition BottomNone x y :=
   match x,y with
-    | Small,Small => True
+    | Small,Small => False
     | Small,_ => False
     | _,Small => False
     | _,_ => True
@@ -275,7 +275,7 @@ Ltac cutThis x :=
     in remember x as xx; destruct xx.
 
 Ltac crush :=
-  simpl in *; auto;
+  simpl in *; auto; subst; simpl in *; auto;
     match goal with
       | [F:False |- _] => inversion F
       | [H:Some _ = ?x 
@@ -294,6 +294,12 @@ Ltac crush :=
       | [H:false = true |- _] => inversion H
       | [H:true = false |- _] => inversion H
       | [H: _ /\ _ |- _] => destruct H; crush
+      | [H: None = Some _ |- _] => inversion H
+      | [H: Some _ = None |- _] => inversion H
+      | [H: Some ?x = Some ?y |- _] 
+        => assert (x = y); inversion H; clear H; crush
+      | [H: Suffix = Prefix |- _] => inversion H
+      | [H: Prefix = Suffix |- _] => inversion H
       | _ => idtac
     end.
 
@@ -305,6 +311,12 @@ Ltac desall :=
         | None => _
         | Some _ => _
       end] |- _]
+      => cutThis (topCheck x y); desall
+    | [|- context[
+      match topCheck ?x ?y with
+        | None => _
+        | Some _ => _
+      end]]
       => cutThis (topCheck x y); desall
     | [_:context[if nextTop1 ?x ?y then _ else _] |- _]
       => cutThis (nextTop1 x y); desall
@@ -414,13 +426,18 @@ npush x (Deque M0 Empty None) = Deque M0 Empty (Some x)
 npush x (Deque M0 Empty (Some y)) = Deque (MS x y M0) Empty None 
 npush x (Deque M0 (Full (NE (Stack B0 (B1 z) zs) Empty) xs) q) = Deque (MS x z zs) xs q 
 npush x (Deque M0 (Full (NE (Stack B0 (B1 z) zs) (Full y ys)) xs) q) = Deque (MS x z zs) (Full (NE y ys) xs) q 
+*)
+(*
 npush x (Deque M0 (Full (NE (Stack B0 z zs) Empty) xs) q) = Deque M0 (cons13 (B1 x) z zs xs) q
+*)
+(*
 npush x (Deque M0 (Full (NE (Stack (B1 y) z zs) Empty) xs) q) = Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) xs) q
 npush x (Deque M0 (Full (NE (Stack (B1 y) z zs) (Full r rs)) xs) q) = Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) (Full (NE r rs) xs)) q
 npush x (Deque (MS y z zs) rs q) = Deque M0 (cons13 (B2 x y) (B1 z) zs rs) q
 *)
 
 Definition npush a (x:a) (xx:Deq a) : Deq a :=
+  let default := xx in
   match xx with
     | Deque _ _ b c d =>
       match b in MStack _ B return ThreeStack B _ -> Deq a with
@@ -441,11 +458,16 @@ Definition npush a (x:a) (xx:Deq a) : Deq a :=
                         | Empty => fun xsxs => Deque (MS x z zs) xsxs dd
                         | Full _ _ y ys => fun xsxs => Deque (MS x z zs) (Full (NE y ys) xsxs) dd
                       end xs
-                    | _ => xx
+                    | Stack B0 z zs => 
+                      match g in Nest _ _ G return Nest _ G _ -> Deq a with
+                        | Empty => fun xsxs => Deque M0 (cons13 (B1 x) z zs xsxs) dd
+                        | _ => fun _ => default
+                      end xs
+                    | _ => default
                   end
               end
           end d
-        | _ => fun cc => xx
+        | _ => fun _ => default
       end c
   end.
 
@@ -468,8 +490,31 @@ Proof.
   destruct n; crush.
   destruct s; crush.
   destruct t; crush.
+  destruct s; crush.
+  destruct s; crush.
+  desall. destruct t0; crush.
+  destruct t; crush.
+  destruct m; crush.
+  destruct s; crush.
+  destruct s; crush.
+  desall. destruct t0; crush.
+
+  destruct n; crush.
+  destruct s; crush.
+  destruct t; crush.
   destruct t; crush.
 
+  destruct n; crush.
+  destruct s; crush.
+  destruct t; crush.
+  destruct m; crush.
+  destruct s; crush.
+  destruct s; crush.
+  desall. destruct t0; crush.
+  destruct t; crush.
+  destruct s; crush.
+  destruct s; crush.
+  desall. destruct t0; crush.
 Qed.
 
 Lemma npushShape :
@@ -483,11 +528,87 @@ Proof.
   destruct t; crush.
   destruct s; crush.
   destruct s0; crush. destruct s0; crush. destruct b1; crush.
-destruct b2; crush. destruct n; crush. destruct t; crush.
-desall.
-  crush. destruct t; crush.
-  desall. desall. destruct t0; crush.
-  destruct t0; crush. destruct t1; crush.
+  destruct b2; crush. destruct n; crush. 
+  eapply cons13shape. crush.
+  destruct t; crush.
+  desall.
+  
+  destruct n; crush.
+  destruct t; crush. desall.
+  destruct t; crush. desall. desall.
+  destruct t0; crush.
+  destruct t0; crush.
+  destruct t1; crush.
+
+  destruct n; crush.
+  destruct t; crush. 
+  destruct s0; crush.
+  destruct s0; crush. 
+  desall.
+  destruct t0; crush.
+  destruct b3; destruct b2; crush.
+  destruct t; crush.
+  destruct n; crush.
+  destruct n; crush.
+
+  destruct t0; crush.
+  destruct t1; crush.
+  destruct b3; destruct b2; crush.
+  destruct t; crush.
+  destruct n; crush.
+  destruct n; crush.
+  destruct s0; crush; desall.
+  destruct t; crush.
+  destruct s0; crush; desall.
+  destruct t; crush.
+  destruct n; crush.
+  destruct s0; crush; desall.
+  destruct t0; crush.
+  desall. 
+  destruct t0; crush.
+  destruct t0; crush.
+  destruct t1; crush.
+
+  destruct t; crush.
+  destruct n; crush; desall.
+  destruct t; crush.
+  desall. destruct n; crush.
+  subst. crush.
+  desall. destruct t0; crush.
+
+  destruct t; crush. destruct t1; crush.
+  destruct n; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  desall. destruct t; crush.
+  destruct n; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  desall. destruct t; crush.
+  destruct n; crush.
+  destruct t; crush.
+  destruct s0; crush.
+  destruct n; crush.
+  destruct s0; crush.
+  destruct b4; destruct b5; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  desall.
+  destruct t0; crush.
+  destruct t0; crush.
+  destruct t1; crush.
+  destruct t; crush.
+  destruct n; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  desall.
+  destruct n; crush.
+  rewrite <- HeqH0 in HeqH1; crush.
+  desall.
+  rewrite <- HeqH0 in HeqH1; crush.
+  desall.
 Qed.
 
 Lemma npushBufs :

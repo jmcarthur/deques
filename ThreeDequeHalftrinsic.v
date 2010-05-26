@@ -306,6 +306,34 @@ Ltac crush :=
       | _ => idtac
     end.
 
+Ltac desall :=
+  crush;
+  match goal with
+    | [_:context[
+      match topCheck ?x ?y with
+        | None => _
+        | Some _ => _
+      end] |- _]
+      => cutThis (topCheck x y); desall
+    | [_:context[if nextTop1 ?x ?y then _ else _] |- _]
+      => cutThis (nextTop1 x y); desall
+    | [|- context[if nextTop1 ?x ?y then _ else _]]
+      => cutThis (nextTop1 x y); desall
+    | [_:context[
+      match top2' ?x ?y with
+        | None => _
+        | Some _ => _
+      end] |- _]
+      => cutThis (top2' x y); desall
+    | [_:context[
+      match top3 ?x ?y with
+        | None => _
+        | Some _ => _
+      end] |- _]
+      => cutThis (top3 x y); desall
+    | _ => idtac
+  end.
+
 Lemma cons13shape : 
   forall a (x y:Buffer a)
     b (xs:MStack (Both a) b)
@@ -322,28 +350,9 @@ Proof.
   destruct s; crush.
   destruct t; crush;
     destruct n; crush;
-      cutThis (topCheck b2 b3);
-        crush.
-  cutThis (nextTop1 i t); crush.
-  cutThis (nextTop1 i t); crush.
-  cutThis (top2' s n); crush.
-  cutThis (nextTop1 t t0); crush.
-  cutThis (top2' s n); crush.
-  cutThis (nextTop1 t t0); crush.
-  cutThis (nextTop1 i t0); crush;
-    cutThis (top3 s t); crush.
-  cutThis (nextTop1 i t1); cutThis (nextTop1 t0 t1); crush.
+      desall.
   cutThis i; cutThis t0; cutThis t1; crush.
-  cutThis (nextTop1 t0 t1); crush.
-  cutThis (nextTop1 i t0); crush;
-    cutThis (top2' s0 n); crush.
-  cutThis (nextTop1 t0 t1); crush;
-    cutThis (top3 s t); crush.
-  cutThis (nextTop1 i t2); cutThis (nextTop1 t0 t2); crush.
-  cutThis i; cutThis t0; cutThis t2; crush.
-  cutThis (nextTop1 t0 t1); crush.
-    cutThis (top3 s t); crush.
-  cutThis (nextTop1 t0 t2); crush.
+  cutThis i; cutThis t0; cutThis t1; cutThis t2; crush.
 Qed.
     
 cons13 :: Buffer a -> Buffer a -> MStack (Both a) b -> ThreeStack b c -> ThreeStack a c

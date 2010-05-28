@@ -508,7 +508,7 @@ Lemma bufsAlt2PreExt :
     A B (M:Stuck A B) 
     C (N:Nest Stuck B C) 
     E (R:ThreeStack C E) p w,
-    (forall q z, (*prepose' R <> q -> *) f Medium z -> f q z) ->
+    (forall q z, (*prepose' R <> q*) q = p -> f Medium z -> f q z) ->
     topShape R ->
     topShape (Full (NE M N) R) ->
     prepose' (Full (NE M N) R) <> p ->
@@ -534,6 +534,21 @@ Proof.
       destruct N; desall.
 Qed.
 
+Lemma bufsAlt2PreExt : 
+  forall (f:Size -> Size -> Prop) 
+    A B (M:Stuck A B) 
+    C (N:Nest Stuck B C) 
+    E (R:ThreeStack C E) p w,
+    (forall q z, (*prepose' R <> q -> *) f Medium z -> f q z) ->
+    topShape R ->
+    topShape (Full (NE M N) R) ->
+    prepose' (Full (NE M N) R) <> p ->
+    bufsAltStart2 f M N R Medium w ->
+    bufsAltStart2 f M N R p w.
+Lemma bufsAltPreMedium :
+  forall a b (t:ThreeStack a b) p q,
+    bufsAltStart t p q ->
+    bufsAltStart t Medium q.
 
 Lemma bufsAlt2PreExt : 
   forall (f:Size -> Size -> Prop) 

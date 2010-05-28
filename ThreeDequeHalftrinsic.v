@@ -274,7 +274,7 @@ Ltac cutThis x :=
   let xx := fresh
     in remember x as xx; destruct xx.
 
-Ltac crush :=
+Ltac crush := unfold not; intros;
   simpl in *; auto; subst; simpl in *; auto;
     match goal with
       | [F:False |- _] => inversion F
@@ -306,6 +306,11 @@ Ltac crush :=
       | [H : Some _ = ?x,
          I : Some _ = ?x |- _] 
         => rewrite <- I in H; inversion H
+      | [H: Small = Medium |- _] => inversion H
+      | [H: Large = Medium |- _] => inversion H
+      | [H: ~ True |- _] => 
+        let J := fresh
+          in pose (H I) as J; inversion J
       | _ => idtac
     end.
 
@@ -322,6 +327,13 @@ Ltac desall :=
         | Some _ => _
       end] |- _]
       => cutThis (topCheck x y); desall
+    | [_:context[
+      match bufSize ?x with
+        | Small => _
+        | Medium => _
+        | Large => _
+      end] |- _]
+      => cutThis x; desall
     | [|- context[
       match topCheck ?x ?y with
         | None => _
@@ -391,6 +403,13 @@ Ltac desall :=
         | Prefix => _
         | Suffix => _
         | Twofix => _
+      end] |- _] => equate H x; cutThis x; desall
+    | [ H:_,
+        _:context[
+      match ?x with
+        | B0 => _
+        | B1 _ => _
+        | B2 _ _ => _
       end] |- _] => equate H x; cutThis x; desall
     | _ => idtac
   end.
@@ -479,6 +498,150 @@ Proof.
 Qed.
 Hint Resolve bufsAltPreMedium.
 
+About MStack_ind.
+
+Lemma bufsAlt2PreExt : 
+  forall (f:Size -> Size -> Prop) 
+    A B (M:Stuck A B) 
+    C (N:Nest Stuck B C) 
+    E (R:ThreeStack C E) p w,
+    (forall q z, (*prepose' R <> q -> *) f Medium z -> f q z) ->
+    topShape R ->
+    topShape (Full (NE M N) R) ->
+    prepose' (Full (NE M N) R) <> p ->
+    bufsAltStart2 f M N R Medium w ->
+    bufsAltStart2 f M N R p w.
+Proof.
+  intros f A B M C N.
+  generalize dependent f; generalize dependent A.
+  induction N; intros; desall;
+    repeat split; desall;
+      destruct p; desall.
+  eapply IHN; desall.
+  destruct R; desall;
+    destruct f; desall.
+  destruct f; desall;
+    destruct R; desall;
+      destruct N; desall.
+  eapply IHN; desall.
+  destruct R; desall;
+    destruct N; desall.
+  destruct f; desall;
+    destruct R; desall;
+      destruct N; desall.
+Qed.
+
+
+Lemma bufsAlt2PreExt : 
+  forall (f:Size -> Size -> Prop) 
+    A B (M:Stuck A B) 
+    C (N:Nest Stuck B C) 
+    E (R:ThreeStack C E) p w,
+    (forall q z, (*prepose' R <> q -> *) f Medium z -> f q z) ->
+    topShape R ->
+    topShape (Full (NE M N) R) ->
+    prepose' (Full (NE M N) R) <> p ->
+    bufsAltStart2 f M N R Medium w ->
+    bufsAltStart2 f M N R p w.
+Proof.
+  intros f A B M C N.
+  generalize dependent f; generalize dependent A.
+  induction N; intros; desall;
+    repeat split; desall;
+      destruct p; desall.
+  eapply IHN; desall.
+  destruct R; desall.
+  destruct f; desall.
+  destruct R; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct R; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct N; desall.
+  destruct p; desall.
+Qed.
+
+
+  destruct b1; desall.
+  destruct R; desall;
+    destruct N; desall;
+      destruct f; desall.
+  
+  destruct p; desall.
+  destruct p; desall.
+  destruct p; desall.
+  
+
+
+
+  eapply H; desall.
+  destruct R; desall. 
+  destruct s; desall.
+  destruct s; desall.
+  destruct R; desall.
+  destruct n; desall.
+
+  destruct p; desall.
+  cutThis (prepose' R); desall.
+  destruct R; desall.
+  destruct w; destruct s; desall.
+  destruct s; destruct R; desall.
+  destruct n; desall.
+  eapply H; desall.
+  destruct p; desall.
+  destruct p; desall.
+  destruct p; desall.
+  eapply IHN; desall.
+  destruct f; desall.
+  destruct p; desall.
+  destruct p; desall.
+  apply H; desall.
+  destruct w; destruct p; destruct b0; desall.
+  destruct p; desall.
+  destruct w; destruct p; destruct b1; desall.
+  destruct w; destruct p; destruct b1; desall.
+  eapply IHN; desall.
+  Focus 2.
+  destruct w; destruct b1; desall.
+  Unfocus.
+  destruct w; destruct b1; desall.
+  destruct f; destruct N; desall.
+
+
+  destruct w; destruct p; destruct b1; desall.
+
+  Print bufsAltStart2.
+  destruct p; desall;
+    destruct w; desall;
+      destruct R; desall;
+        destruct N; desall;
+          repeat split; desall.
+  apply H; crush.
+  pose (H3 I). inversion f0.
+  inversion H3.
+  simpl in *.
+  unfold not in *. crush.
+  crush.
+  unfold bufSize in *. desall. eapply H; auto.
+  eapply H; eauto; desall. destruct b0; desall.
+
+          destruct M; desall.
+
+  assert (forall A B (C:ThreeStack A B),
+    prepose' C <> Large ->
+    forall z,
+      z <> Medium ->
+      bufsAltStart C Medium z ->
+      bufsAltStart C Large z) as ans.
+
 (*
 npush :: a -> Deque a -> Deque a
 npush x (Deque M0 Empty None) = Deque M0 Empty (Some x) 
@@ -520,6 +683,12 @@ Definition npush a (x:a) (xx:Deq a) : Deq a :=
                         | Empty => fun xsxs => Deque M0 (cons13 (B1 x) z zs xsxs) dd
                         | _ => fun _ => default
                       end xs
+                    | Stack (B1 y) z zs =>
+                      match g in Nest _ _ G return Nest _ G _ -> Deq a with
+                        | Empty => fun xsxs => Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) xsxs) dd
+                        | Full _ _ r rs => fun xsxs => Deque M0 (Full (NE (Stack (B2 x y) z zs) Empty) (Full (NE r rs) xsxs)) dd
+                      end xs
+
                     | _ => default
                   end
               end
@@ -553,28 +722,18 @@ Proof.
   intros.
   destruct xs; crush.
   desall.
-  destruct H0; desall.
-  destruct H0; desall; destruct n; desall.
-  destruct H0; desall.
-  destruct n; desall.
-  destruct n; desall.
-  destruct n; desall.
-
-  destruct H0; desall;
-    destruct n; desall;
-      destruct m0; desall.
-  destruct H0; desall;
-    destruct n; desall;
-      destruct m0; desall.
-  destruct H0; desall;
-    destruct m; desall.
-  eapply cons13shape; crush.
-  destruct H0; desall;
-    destruct m; desall.
-  destruct H0; desall;
-    destruct H1; desall.
+  eapply cons13shape; crush. 
+  destruct H0; desall; destruct m; desall.
+  destruct H0; desall; destruct m; desall.
+  eapply cons13shape; crush. 
+  destruct H0; desall; destruct m; desall.
+  destruct H0; desall; destruct m; desall.
+  destruct H0; desall; destruct H1; desall.
+  destruct H0; desall; destruct H1; desall.
+  destruct H0; desall; destruct H1; desall.
+  destruct H0; desall; destruct H1; desall.
+  destruct H0; desall; destruct H1; desall.
 Qed.
-
 
 Lemma npushBufs :
   forall a (x:a) xs,
@@ -590,6 +749,103 @@ Proof.
   eauto.
   destruct m; desall; destruct H2; desall;
     repeat split; desall; eauto.
+  repeat split; desall; eauto.
+  Focus 2.
+  eauto. Focus 2.
+  repeat split; desall; eauto.
+  Unfocus. Print nextSize. Print top3.
+  assert (forall A B (C:ThreeStack A B),
+    prepose' C <> Large ->
+    forall z,
+      z <> Medium ->
+      bufsAltStart C Medium z ->
+      bufsAltStart C Large z) as ans.
+  clear.
+  Print bufsAltStart.
+  Print bufsAltStart2.
+  destruct C. Focus 2.
+  simpl. destruct s; desall.
+  unfold bufsAltStart.
+  forall A B
+  assert (fora
+
+  induction C.
+  intros.
+  destruct z; desall.
+  intros.
+  destruct f; desall.
+  desall s; desall; destruct n; desall
+  destruct C; desall.
+  destruct s0; desall; destruct n; desall;
+    repeat split; desall.
+  destruct b2
+  
+  
+  cutThis (prepose' C); desall.
+  destruct C; desall. 
+  destruct s0; desall; destruct n; desall; destruct C; desall;
+    repeat split; desall.
+  destruct C; desall.
+  destruct s0; desall; destruct n; desall; destruct C; desall;
+    repeat split; desall.
+  destruct b2; desall; destruct s0; desall; destruct n; desall; destruct C; desall.
+  destruct b2; desall; destruct b3; desall; destruct s0; desall; destruct n; desall; destruct C; desall.
+  
+    repeat split; desall.
+
+
+  destruct z; desall;
+  destruct s0; desall; destruct n; desall; destruct C; desall;
+    repeat split; desall.
+  destruct s0; desall; destruct n; desall; destruct C; desall;
+    repeat split; desall.
+  destruct b2; destruct z; desall.
+
+  cutThis (prepose' H2); desall.
+  destruct H2; desall. 
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; destruct m; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H. auto.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; desall; destruct s1; desall; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+  destruct H2; destruct s1; destruct n; desall.
+
+  destruct H2; desall. destruct H2; desall. destruct n; desall.
+  repeat split; desall; eauto.
   eauto.
 Qed.
   

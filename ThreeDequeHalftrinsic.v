@@ -277,6 +277,9 @@ Ltac cutThis x :=
 Ltac crush := unfold not; intros;
   simpl in *; auto; subst; simpl in *; auto;
     match goal with
+      | [H:True |- _] => clear H; crush
+      | [H:~ False |- _] => clear H; crush
+      | [H:?x = ?x |- _] => clear H; crush
       | [F:False |- _] => inversion F
       | [H:Some _ = ?x 
         |- context[

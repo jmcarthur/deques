@@ -109,7 +109,7 @@ Fixpoint bufsAltStart2 a b (m:Stuck a b) c (n:Nest Stuck b c) (*d e (r:ThreeStac
       let xs' := bufSize x in
         let ys' := bufSize y in
           match sameSize xs xs', sameSize ys ys' with
-            | true,true =>
+            | false,false =>
               let xs2 := nextSize xs xs' in
                 let ys2 := nextSize ys ys' in
                   match n with
@@ -499,22 +499,41 @@ Defined.
 Print npushHelp.
 *)
 
+
+
+
 Lemma bufsAlt2PreMed : 
-  forall (f:Size -> Size -> Prop) 
+  forall 
     A B (M:Stuck A B) 
-    C (N:Nest Stuck B C) 
-    D E (R:ThreeStack D E) p w,
-    (forall q z, f q z -> f Medium z) ->
-    bufsAltStart2 f M N R p w ->
-    bufsAltStart2 f M N R Medium w.
+    C (N:Nest Stuck B C) p w
+    X Y (t : ThreeStack X Y),
+    (forall q r, bufsAltStart t q r -> bufsAltStart t Medium r) ->
+    let ext := bufsAltStart2 M N p w in
+      let med := bufsAltStart2 M N Medium w in
+        match ext with
+          | Some (a,b) =>
+            match med with
+              | None => False
+              | Some (c,d) => 
+                
+                  bufsAltStart t a b -> 
+                  bufsAltStart t c d
+            end
+          | _ => True
+        end.
 Proof.
   intros. generalize dependent w. generalize dependent A.
-  induction N.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b; crush.
-  destruct p; crush; eauto.
-  crush. destruct M; crush. repeat split; crush.
-  destruct b0; crush.
+  generalize dependent p.
+  induction N; desall.
+  destruct p; destruct w; destruct b; destruct b0; desall; eauto.
+  cutThis (sameSize p (bufSize b0)); desall.
+  cutThis (sameSize w (bufSize b1)); desall.
+  destruct b0; desall.
+  cutThis (bufsAltStart2 f N Small (nextSize w (bufSize b1))); desall.
+  destruct p0; desall.
+  eapply IHN.
+  cutThis (bufsAltStart2 f N Large (nextSize w (bufSize b1))); desall.
+  destruct p0; desall.
 Qed.
 Hint Resolve bufsAlt2PreMed.
 
@@ -523,14 +542,26 @@ Lemma bufsAltPreMedium :
     bufsAltStart t p q ->
     bufsAltStart t Medium q.
 Proof.
-  induction t; crush.
-  destruct f; crush.
-  intros.
-  eapply bufsAlt2PreMed; eauto.
+  induction t; desall.
+  cutThis (bufsAltStart2 s n p q); desall.
+  cutThis (bufsAltStart2 s n Medium q); desall.
+  pose bufsAlt2PreMed as B.
+  pose (B _ _ s _ n p q) as C.
+  desall.
+  rewrite <- HeqH0 in C.
+  destruct p0; desall.
+  rewrite <- HeqH1 in C. desall.
+  eapply C; desall.
+  eapply IHt. eauto.
+  destruct p1.
+  destruct p0.
+  pose bufsAlt2PreMed as B.
+  pose (B _ _ s _ n p q) as C.
+  desall.
+  rewrite <- HeqH0 in C.
+  rewrite <- HeqH1 in C. desall.
 Qed.
 Hint Resolve bufsAltPreMedium.
-
-About MStack_ind.
 
 Lemma bufsAlt2PreExt : 
   forall (f:Size -> Size -> Prop) 

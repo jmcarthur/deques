@@ -103,7 +103,35 @@ Inductive BufsAltStart (xs ys:Size)
     BufsAltStart xs ys (Full _ (NE _ (Stack x y q) (Full za z zs)) r).
 *)
 
-Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuck b c) d e (r:ThreeStack d e) (xs ys:Size) :=
+Fixpoint bufsAltStart2 a b (m:Stuck a b) c (n:Nest Stuck b c) (*d e (r:ThreeStack d e) *) (xs ys:Size) :=
+  match m with
+    | Stack x y _ =>
+      let xs' := bufSize x in
+        let ys' := bufSize y in
+          match sameSize xs xs', sameSize ys ys' with
+            | true,true =>
+              let xs2 := nextSize xs xs' in
+                let ys2 := nextSize ys ys' in
+                  match n with
+                    | Empty => Some (xs2,ys2)
+                    | Full _ _ z zs => bufsAltStart2 z zs xs2 ys2
+                  end
+            | _,_ => None
+          end
+  end.
+
+Fixpoint bufsAltStart a b (r:ThreeStack a b) (xs ys:Size) :=
+  match r with
+    | Empty => True
+    | Full _ _ (NE _ p ps) qs => 
+      match bufsAltStart2 p ps xs ys with
+        | None => False
+        | Some (xs',ys') => bufsAltStart qs xs' ys'
+      end
+  end.
+
+(*
+Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuck b c) (*d e (r:ThreeStack d e) *) (xs ys:Size) :=
   match m with
     | Stack x y _ =>
       let xs' := bufSize x in
@@ -114,7 +142,7 @@ Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuc
            /\
            (match n with
               | Empty => f 
-              | Full _ _ z zs => bufsAltStart2 f z zs r
+              | Full _ _ z zs => bufsAltStart2 f z zs (*r*)
             end) (nextSize xs xs') (nextSize ys ys')
            )
   end.
@@ -122,8 +150,9 @@ Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuc
 Fixpoint bufsAltStart a b (r:ThreeStack a b) (xs ys:Size) :=
   match r with
     | Empty => True
-    | Full _ _ (NE _ p ps) qs => bufsAltStart2 (bufsAltStart qs) p ps qs xs ys
+    | Full _ _ (NE _ p ps) qs => bufsAltStart2 (bufsAltStart qs) p ps (*qs*) xs ys
   end.
+*)
 
 Definition BufsAlternate t (x:Deq t) :=
   match x with
@@ -508,7 +537,7 @@ Lemma bufsAlt2PreExt :
     A B (M:Stuck A B) 
     C (N:Nest Stuck B C) 
     E (R:ThreeStack C E) p w,
-    (forall q z, (*prepose' R <> q*) q = p -> f Medium z -> f q z) ->
+    (forall q z, (*prepose' R <> q*) (*q = p ->*) f Medium z -> f q z) ->
     topShape R ->
     topShape (Full (NE M N) R) ->
     prepose' (Full (NE M N) R) <> p ->
@@ -534,21 +563,32 @@ Proof.
       destruct N; desall.
 Qed.
 
-Lemma bufsAlt2PreExt : 
-  forall (f:Size -> Size -> Prop) 
-    A B (M:Stuck A B) 
-    C (N:Nest Stuck B C) 
-    E (R:ThreeStack C E) p w,
-    (forall q z, (*prepose' R <> q -> *) f Medium z -> f q z) ->
-    topShape R ->
-    topShape (Full (NE M N) R) ->
-    prepose' (Full (NE M N) R) <> p ->
-    bufsAltStart2 f M N R Medium w ->
-    bufsAltStart2 f M N R p w.
-Lemma bufsAltPreMedium :
+Lemma bufsAltPreExt :
   forall a b (t:ThreeStack a b) p q,
-    bufsAltStart t p q ->
-    bufsAltStart t Medium q.
+    topShape t ->
+    prepose' t <> p ->
+    bufsAltStart t Medium q ->
+    bufsAltStart t p q.
+Proof.
+  induction t; intros; desall.
+  destruct p; desall.
+  eapply bufsAlt2PreExt; desall.
+  eapply IHt; desall.
+  destruct t; desall.
+  destruct s; desall.
+  destruct t; desall.
+      destruct n; desall.
+  
+
+  destruct s; destruct p; desall; eapply IHt; desall;
+    destruct t; desall.
+  destruct s; desall.
+  destruct s; desall.
+  destruct n; desall.
+  destruct
+  des
+  destruct s; desall.
+  
 
 Lemma bufsAlt2PreExt : 
   forall (f:Size -> Size -> Prop) 

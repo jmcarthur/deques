@@ -347,6 +347,8 @@ Ltac crush := subst; unfold not; intros;
       | [H: Large = Medium |- _] => inversion H
       | [H: Medium = Small |- _] => inversion H
       | [H: Medium = Large |- _] => inversion H
+      | [H: Large = Small |- _] => inversion H
+      | [H: Small = Large |- _] => inversion H
       | [H: ~ True |- _] => 
         let J := fresh
           in pose (H I) as J; inversion J
@@ -594,8 +596,9 @@ Proof.
   destruct f; desall;
     destruct N; desall.
 Qed.
+Hint Resolve bufsAlt2PreExtSoExt.
   
-Lemma bufsAlt2PreExtSoExt : 
+Lemma bufsAlt2PreExtSoExtExt : 
   forall 
     B C (N:Nest Stuck B C)
     A (M:Stuck A B) w,
@@ -603,249 +606,18 @@ Lemma bufsAlt2PreExtSoExt :
       c <> Medium ->
       forall d, 
         Some (c,d) = bufsAltStart2 M N Medium w ->
-        Medium <> prepose' (Full (NE M N) Empty) ->
-        topShape (Full (NE M N) Empty) ->
-        False.
-  
-
-
-      | Some (c,d) => 
-        match c with
-          | Medium => 
-            forall p, 
-              match bufsAltStart2 M N p w with
-                | None => False
-                | Some (e,f) => e = p /\ d = f
-              end
-          | _ =>
-            match prepose' (Full (NE M N) Empty) with
-              | Medium => 
-                forall p, 
-                  match bufsAltStart2 M N p w with
-                    | None => False
-                    | Some (e,f) => e = c /\ d = f
-                  end
-              | z =>
-                forall p, 
-                  (p <> z ->
-                    match bufsAltStart2 M N p w with
-                      | None => False
-                      | Some (e,f) => e = c /\ d = f
-                    end)
-                  /\ 
-                  (None = bufsAltStart2 M N z w)
-            end
-        end
-    end.
-Proof.
-  intros A B M C N.
-  generalize dependent A.
-  induction N; desall.
-  destruct M; crush.
-  destruct w; destruct b0; crush; destruct b; crush.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-  desall.
-
-
-
-  destruct b; crush.
-  desall.
-    destruct p; desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-    rewrite <- HeqH0 in *; desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-    rewrite <- HeqH0 in *; desall.
-  destruct s; desall;
-    destruct p; desall.
-  pose (@startExt _ _ _ f N Small (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in ans. apply ans; desall.
-  pose (@startExt _ _ _ f N Small (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in ans. 
-  assert (False); desall. apply ans; crush.
-  destruct s; desall;
-    destruct p; desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in ans; desall.
-  destruct f; desall.
-  destruct p; desall.
-
-  pose (@startExt _ _ _ f N Small (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in ans. apply ans; desall.
-  pose (@startExt _ _ _ f N Small (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in ans. 
-  assert (False); desall. apply ans; crush.
-
-
-
-      pose (ans H); desall.
-  pose (IHN _ f Large (nextSize w (bufSize b1))) as ans;
-    rewrite <- HeqH1 in ans; desall;
-      pose (ans H); desall.
-
-
-  destruct b; desall.
-  destruct b; desall.
-
-
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-  rewrite <- HeqH0 in *; desall.
-  destruct p; desall.
-  destruct p; desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-  rewrite <- HeqH0 in *; desall.
-  destruct f; destruct p; desall.
-  pose (ans Medium) as am.
-  rewrite <- HeqH0 in *; desall.
-  
-  
-  Print bufsAltStart2.
-  
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-  rewrite <- HeqH0 in *; desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-  rewrite <- HeqH0 in *; desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans;
-  rewrite <- HeqH0 in *; desall.
-
-
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-  pose (IHN _ f (nextSize w (bufSize b1))) as ans.
-  rewrite <- HeqH0 in *. desall.
-
-  destruct w; desall;
-    destruct b0; desall;
-      destruct p; desall.
-  destruct w; desall;
-    destruct b0; desall;
-      destruct p; desall.
-  destruct w; desall;
-    destruct b0; desall;
-      destruct p; desall.
-  destruct w; desall;
-    destruct b1; desall;
-      try (destruct p; desall);
-        try (destruct p0; desall).
-  cutThis (bufsAltStart2 f N Small Small); desall.
-  desall.
-  
-  destruct w; desall;
-    destruct b0; desall;
-      destruct p; desall.
-  destruct w; desall;
-    destruct b0; desall;
-      destruct p; desall.
-  destruct w; desall;
-    destruct b0; desall;
-      destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct w; desall;
-    destruct b0; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-
-
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-  destruct p; desall.
-
-
-          | Medium => 
-        match c with
-          | Small => bufsAltStart2 M N 
-
-
-    (forall q r, topShape t -> prepose' t <> q -> bufsAltStart t q r -> bufsAltStart t Medium r) ->
-    let ext :=  in
-      let med := bufsAltStart2 M N p w in
-        match ext with
-          | Some (a,b) =>
-            match med with
-              | None => False
-              | Some (c,d) => 
-                  topShape t -> prepose' t <> p ->
-                  bufsAltStart t a b -> 
-                  bufsAltStart t c d
-            end
-          | _ => True
+        match prepose' (Full (NE M N) Empty) with
+          | Medium => ~ topShape (Full (NE M N) Empty)
+          | Small => Some (c,d) = bufsAltStart2 M N Large w
+          | Large => Some (c,d) = bufsAltStart2 M N Small w
         end.
 Proof.
-
-
-Lemma bufsAlt2PreExt : 
-  forall 
-    A B (M:Stuck A B) 
-    C (N:Nest Stuck B C) p w
-    X Y (t : ThreeStack X Y),
-    (forall q r, topShape t -> prepose' t <> q -> bufsAltStart t q r -> bufsAltStart t Medium r) ->
-    let ext := bufsAltStart2 M N Medium w in
-      let med := bufsAltStart2 M N p w in
-        match ext with
-          | Some (a,b) =>
-            match med with
-              | None => False
-              | Some (c,d) => 
-                  topShape t -> prepose' t <> p ->
-                  bufsAltStart t a b -> 
-                  bufsAltStart t c d
-            end
-          | _ => True
-        end.
-Proof.
-  intros. generalize dependent w. generalize dependent A.
-  generalize dependent p.
-  induction N; desall.
-  destruct p; destruct w; destruct b; destruct b0; desall; eauto.
-  cutThis (sameSize p (bufSize b0)); desall.
-  cutThis (sameSize w (bufSize b1)); desall.
-  destruct b0; desall.
-  cutThis (bufsAltStart2 f N Small (nextSize w (bufSize b1))); desall.
-  destruct p0; desall.
-  eapply IHN.
-  cutThis (bufsAltStart2 f N Large (nextSize w (bufSize b1))); desall.
-  destruct p0; desall.
-  intros 
-
-
+  induction N.
+  desall.
+  intros.
+  cutThis (prepose' (Full (NE M (Full f N)) Empty)); eauto; desall.
+Qed.
+Hint Resolve bufsAlt2PreExtSoExtExt.
 
 Lemma bufsAltPreExt :
   forall a b (t:ThreeStack a b) p q,

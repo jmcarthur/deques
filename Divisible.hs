@@ -13,11 +13,11 @@ data Reven dq left midl = R0 (dq left)
 
 instance (Deque dq, Show midl, Show rite) => Show (Leven dq midl rite) where
     show (L0 x) = "(L0 "++(showDeque x)++")"
-    show (L2 x y z) = "(L2 "++(show x)++" "++(show y)++" "++(showDeque z)++")"
+    show (L2 x y z) = "(L2 ("++(show x)++") "++(show y)++" "++(showDeque z)++")"
 
 instance (Deque dq, Show midl, Show left) => Show (Reven dq left midl) where
     show (R0 x) = "(R0 "++(showDeque x)++")"
-    show (R2 x y z) = "(R2 "++(showDeque x)++" "++(show y)++" "++(show z)++")"
+    show (R2 x y z) = "(R2 "++(showDeque x)++" "++(show y)++" ("++(show z)++"))"
 
 data LSpine d a = LSpine a (d (RSpine d a)) (d (Leven d (Spine d a) (RSpine d a)))
 data RSpine d a = RSpine (d (Reven d (LSpine d a) (Spine d a))) (d (LSpine d a)) a
@@ -45,32 +45,61 @@ data Div d a = Empty
              | More (LSpine d a) (Opt (Spine d a)) (RSpine d a) deriving (Show)
 -- TODO: Maybe bit at end?
 
+get1l (LSpine p q r) = 
+    case (pop q, pop r) of
+      (Nothing,Nothing) -> p
+      _ -> error "LSpine too big"
+get1r (RSpine p q r) = 
+    case (pop p, pop q) of
+      (Nothing,Nothing) -> r
+      _ -> error "RSpine too big"
+get1c (Dem p) = get1l p
+get1c (Gop p) = get1r p
+                            
+
 npush x Empty = Single x
 npush x (Single y) = More (LSpine x empty empty) None (RSpine empty empty y)
 npush x (More (LSpine a bs cs) cn rs) =
     case pop bs of
+      Just (b',bs') -> More (LSpine x empty (push (L2 (Gop (RSpine empty empty a)) b' bs') cs)) cn rs
       Nothing ->
           case pop cs of
+            Just (L0 cs1,cs2) -> More (LSpine x (push (RSpine empty empty a) cs1) cs2) cn rs
+            Just (L2 _ _ _,_) -> error "npush 2-exposed"
             Nothing -> 
                 case cn of
                   None -> More (LSpine x empty empty) (Some (Dem (LSpine a empty empty))) rs
                   Some cn' ->
-                        let get1l (LSpine p q r) = 
-                                case (pop q, pop r) of
-                                  (Nothing,Nothing) -> p
-                                  _ -> error "npush: LSpine too big"
-                            get1r (RSpine p q r) = 
-                                case (pop p, pop q) of
-                                  (Nothing,Nothing) -> r
-                                  _ -> error "npush: RSpine too big"
-                            get1c (Dem p) = get1l p
-                            get1c (Gop p) = get1r p
-                            cx = get1c cn'
+                        let cx = get1c cn'
                             rx = get1r rs
                         in More (LSpine x (push (RSpine empty empty a) empty) empty) None (RSpine empty (inject empty (LSpine cx empty empty)) rx)
-            Just (L0 cs1,cs2) -> More (LSpine x (push (RSpine empty empty a) cs1) cs2) cn rs
+
+
+
+
+mpush xy bs cs cn rs =
+    case pop bs of
+      Just (b',bs') -> (empty,push (L2 (Gop xy) b' bs') cs,cn,rs)
+      Nothing ->
+          case pop cs of
+            Just (L0 cs1,cs2) -> (push xy cs1, cs2, cn, rs)
             Just (L2 _ _ _,_) -> error "npush 2-exposed"
-      Just (b',bs') -> More (LSpine x empty (push (L2 (Gop (RSpine empty empty a)) b' bs') cs)) cn rs
+            Nothing -> 
+                case cn of
+                  None -> (empty,empty,Some (Gop xy),rs) {-
+                  Some cn' ->
+                        let cx = get1c cn'
+                            rx = get1r rs
+                        in More (LSpine x (push xy empty) empty) None (RSpine empty (inject empty (LSpine cx empty empty)) rx) -}
+    
+
+{-
+prefix0 x@(LSpine a bs cs) =
+    case pop cs of
+      Just (L2 c d es,fs) ->
+      _ -> x
+  
+-}    
 
 {-
 --lrlcomb :: LSpine d a -> RSpine d a -> LSpine d a

@@ -34,15 +34,68 @@ dequeToList xs =
       Nothing -> []
       Just (y,ys) -> y : (dequeToList ys)
 
-data Spine d a = Dem (LSpine d a) 
-               | Gop (RSpine d a) deriving (Show)
+data Spine d a = Empty
+               | Single a
+               | More (LSpine d a) (Spine d a) (RSpine d a) deriving (Show)
+
+divide Empty = (Empty,Empty)
+divide (Single x) = (Single x,Empty)
+divide (More l Empty r) = (ltoc l, rtoc r)
+divide (More l (Single c) r) =
+    let l' = get1l l
+    in (More l Empty (RSpine empty empty c), rtoc r)
+{-
+divide (More l (More a b c) r) =
+    let abc = ctor a b c
+    in (More l Empty abc,r)
+
+ctor a b (RSpine cs ds e) =
+-}    
+
+ltoc (LSpine a bs cs) =
+    case eject cs of
+      Nothing ->
+          case eject bs of
+            Nothing -> Single a
+            Just (bs',b) -> More (LSpine a bs' empty) Empty b
+      Just (cs',L0 c) ->
+          case eject c of
+            Nothing -> ltoc (LSpine a bs cs')
+            Just (ds,d) -> More (LSpine a bs (inject cs' (L0 ds))) Empty d
+      Just (cs',L2 c1 c2 c) ->
+          case eject c of
+            Nothing -> More (LSpine a bs cs') c1 c2
+            Just (ds,d) -> More (LSpine a bs (inject cs' (L2 c1 c2 ds))) Empty d
+
+rtoc (RSpine as bs c) =      
+    case pop as of
+      Nothing ->
+          case pop bs of
+            Nothing -> Single c
+            Just (b,bs') -> More b Empty (RSpine empty bs' c)
+      Just (R0 a,as') ->
+          case pop a of
+            Nothing -> rtoc (RSpine as' bs c)
+            Just (z,zs) -> More z Empty (RSpine (push (R0 zs) as') bs c)
+      Just (R2 a a1 a2,as') ->
+          case pop a of
+            Nothing -> More a1 a2 (RSpine as' bs c)
+            Just (z,zs) -> More z Empty (RSpine (push (R2 zs a1 a2) as') bs c)
+
 
 data Opt a = None
            | Some a deriving (Show)
 
-data Div d a = Empty
-             | Single a
-             | More (LSpine d a) (Opt (Spine d a)) (RSpine d a) deriving (Show)
+
+{-
+divide (More (LSpine a bs cs) ds (RSpine es fs g)) =
+    case 
+-}
+{-
+data Div d a = Spine (Spine d a)
+             | Single a deriving (Show)
+-}
+
 -- TODO: Maybe bit at end?
 
 get1l (LSpine p q r) = 
@@ -53,30 +106,31 @@ get1r (RSpine p q r) =
     case (pop p, pop q) of
       (Nothing,Nothing) -> r
       _ -> error "RSpine too big"
+{-
 get1c (Dem p) = get1l p
 get1c (Gop p) = get1r p
-                            
+-}                            
 
-npush x Empty = Single x
-npush x (Single y) = More (LSpine x empty empty) None (RSpine empty empty y)
+npush x Empty = Single x 
+npush x (Single y) = More (LSpine x empty empty) Empty (RSpine empty empty y) 
 npush x (More (LSpine a bs cs) cn rs) =
     case pop bs of
-      Just (b',bs') -> More (LSpine x empty (push (L2 (Gop (RSpine empty empty a)) b' bs') cs)) cn rs
+      Just (b',bs') -> More (LSpine x empty (push (L2 (Single a) b' bs') cs)) cn rs 
       Nothing ->
           case pop cs of
             Just (L0 cs1,cs2) -> More (LSpine x (push (RSpine empty empty a) cs1) cs2) cn rs
             Just (L2 _ _ _,_) -> error "npush 2-exposed"
             Nothing -> 
                 case cn of
-                  None -> More (LSpine x empty empty) (Some (Dem (LSpine a empty empty))) rs
+                  Empty -> More (LSpine x empty empty) (Single a) rs {-
                   Some cn' ->
                         let cx = get1c cn'
                             rx = get1r rs
                         in More (LSpine x (push (RSpine empty empty a) empty) empty) None (RSpine empty (inject empty (LSpine cx empty empty)) rx)
 
+-}
 
-
-
+{-
 mpush xy bs cs cn rs =
     case pop bs of
       Just (b',bs') -> (empty,push (L2 (Gop xy) b' bs') cs,cn,rs)
@@ -86,7 +140,7 @@ mpush xy bs cs cn rs =
             Just (L2 _ _ _,_) -> error "npush 2-exposed"
             Nothing -> 
                 case cn of
-                  None -> (empty,empty,Some (Gop xy),rs) {-
+                  None -> (empty,empty,Some (Gop xy),rs) -} {-
                   Some cn' ->
                         let cx = get1c cn'
                             rx = get1r rs

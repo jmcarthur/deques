@@ -3,6 +3,7 @@
 module Divisible where
 
 import Deque
+import qualified Data.List as L
 
 type Nat = Integer
 
@@ -110,14 +111,6 @@ rtol x =
          Nothing -> p
          Just q' -> lrl p q'
 
-prefix0 x@(LSpine n a bs cs) =
-    case pop cs of
-      Just (D2 c d es,fs) ->
-          let cd = lrr (rtol c) d
-              (gs,hs) = mpush cd es fs
-          in LSpine n a bs (push (D0 gs) hs)
-      _ -> x
-
 mpush a bs cs = 
     case pop bs of
       Nothing ->
@@ -127,6 +120,14 @@ mpush a bs cs =
             _ -> error "mpush D2"
       Just (b,bs') -> (empty, push (D2 a b bs') cs)
 
+prefix0 x@(LSpine n a bs cs) =
+    case pop cs of
+      Just (D2 c d es,fs) ->
+          let cd = lrr (rtol c) d
+              (gs,hs) = mpush cd es fs
+          in LSpine n a bs (push (D0 gs) hs)
+      _ -> x
+
 npush x (LSpine n a bs cs) =
     let (bs',cs') = mpush (RSpine 1 empty empty a) bs cs
     in LSpine (n+1) x bs' cs'
@@ -134,7 +135,39 @@ npush x (LSpine n a bs cs) =
 dpush x Empty = Full (LSpine 1 x empty empty)
 dpush x (Full xs) = Full $ npush x $ prefix0 xs
 
+mpop bs cs = 
+    case pop bs of
+      Nothing ->
+          case pop cs of
+            Nothing -> Nothing
+            Just (D2 c1 c2 c', cs') -> Just (c1,push c2 c',cs')
+            _ -> error "mpop D0"
+      Just (b,bs') -> Just (b,empty, push (D0 bs') cs)
+
+prefix2 x@(LSpine n a bs cs) =
+    case pop cs of
+      Just (D0 es,fs) ->
+          case mpop es fs of
+            Nothing -> LSpine n a bs empty
+            Just (p,qs,rs) -> 
+                let (p1,Just p2) = rdivlr p
+                in LSpine n a bs (push (D2 (ltor p1) p2 qs) rs)
+      _ -> x
+
+
+ronly (RSpine 1 _ _ x) = x
+ronly _ = error "ronly"
+
+npop (LSpine n a bs cs) =
+    case mpop bs cs of
+      Nothing -> (a,Empty)
+      Just (p,q,r) -> (a,Full (LSpine (n-1) (ronly p) q r))
+
+dpop Empty = Nothing
+dpop (Full xs) = Just $ npop $ prefix2 xs
+
 fromList xs = foldr dpush Empty xs
+toList xs = L.unfoldr dpop xs
 
 data DBG = Leaf Bool String
          | Branch Bool String DBG DBG deriving (Show)

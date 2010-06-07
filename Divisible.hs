@@ -282,6 +282,10 @@ perfectP (Full (LSpine a b xs ys)) =
 -- middle trees perfect
 
 {-
+and [let x = (fromList [0..i] :: DD [] Int) in depthP x && alternateP x && perfectP x | i <- [1..1000]]
+-}
+
+{-
 npush x Empty = Single x 
 npush x (Single y) = More (LSpine x empty empty) Empty (RSpine empty empty y) 
 npush x (More (LSpine a bs cs) cn rs) =

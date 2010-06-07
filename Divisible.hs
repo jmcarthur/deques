@@ -29,7 +29,7 @@ dequeToList xs =
       Just (y,ys) -> y : (dequeToList ys)
 
 data DD d a = Empty
-            | Full (LSpine d a)
+            | Full (LSpine d a) deriving (Show)
 
 full x =
     case pop x of
@@ -109,12 +109,178 @@ rtol x =
     in case q of
          Nothing -> p
          Just q' -> lrl p q'
-{-
+
 prefix0 x@(LSpine n a bs cs) =
     case pop cs of
-      Just (L2 c d es,fs) ->
+      Just (D2 c d es,fs) ->
+          let cd = lrr (rtol c) d
+              (gs,hs) = mpush cd es fs
+          in LSpine n a bs (push (D0 gs) hs)
       _ -> x
--}
+
+mpush a bs cs = 
+    case pop bs of
+      Nothing ->
+          case pop cs of
+            Nothing -> (push a empty, empty)
+            Just (D0 c', cs') -> (push a c', cs')
+            _ -> error "mpush D2"
+      Just (b,bs') -> (empty, push (D2 a b bs') cs)
+
+npush x (LSpine n a bs cs) =
+    let (bs',cs') = mpush (RSpine 1 empty empty a) bs cs
+    in LSpine (n+1) x bs' cs'
+
+dpush x Empty = Full (LSpine 1 x empty empty)
+dpush x (Full xs) = Full $ npush x $ prefix0 xs
+
+fromList xs = foldr dpush Empty xs
+
+data DBG = Leaf Bool String
+         | Branch Bool String DBG DBG deriving (Show)
+
+dval (Leaf x _) = x
+dval (Branch x _ _ _) = x
+
+band v p q = p && q --Branch (dval p && dval q) v p q
+leaf x y = x -- Leaf x y
+
+--ldepth :: Deque d => Nat -> Maybe Nat -> d (RSpine d a) -> d (Even d (RSpine d a)) -> Bool
+ldepth n m bs cs =
+    case pop bs of
+      Nothing ->
+          case pop cs of
+            Nothing -> 
+                case m of
+                  Nothing -> leaf True (show n) 
+                  Just m' -> leaf (n==m') (show (n,m'))
+            Just (D0 c',ds) 
+              -> ldepth (n+1) m c' ds
+            Just (D2 (RSpine _ p1 p2 _ ) q r,ss) 
+              -> band "L2" 
+                 (rdepth (Just (n-0)) 1 p1 p2)
+                 (ldepth n m (push q r) ss)
+      Just (RSpine _ b1 b2 _,bs') 
+          -> band "Lall"
+             (rdepth (Just (n-0)) 1 b1 b2)
+             (ldepth (n+1) m bs' cs)
+
+--rdepth :: Deque d => Maybe Nat -> Nat -> d (Even d (LSpine d a)) -> d (LSpine d a) -> Bool
+rdepth m n cs bs = 
+    case eject bs of
+      Nothing ->
+          case eject cs of
+            Nothing -> 
+                case m of
+                  Nothing -> leaf True (show n)
+                  Just m' -> leaf (n == m') (show (n,m'))
+            Just (ds,D0 c') 
+              -> rdepth m (n+1) ds c'
+            Just (ss,D2 (LSpine _ _ p1 p2) q r) 
+              -> band "R2"
+                 (ldepth 1 (Just (n-0)) p1 p2)
+                 (rdepth m n ss (inject r q))
+      Just (bs',LSpine _ _ b1 b2) 
+          -> band "Rall"
+             (ldepth 1 (Just (n-0)) b1 b2)
+             (rdepth m (n+1) cs bs')
+
+depthP Empty = True
+depthP (Full (LSpine _ _ x y)) = ldepth 1 Nothing x y
+
+data Force = Big | Small | Any
+
+topalt Any x = 
+    case pop x of
+      Nothing -> True
+      Just (D0 _,xs) -> topalt Big xs
+      Just (D2 _ _ _,xs) -> topalt Small xs
+topalt Big x = 
+    case pop x of
+      Nothing -> True
+      Just (D0 _,xs) -> False
+      Just (D2 _ _ _,xs) -> topalt Small xs
+topalt Small x = 
+    case pop x of
+      Nothing -> True
+      Just (D0 _,xs) -> topalt Big xs
+      Just (D2 _ _ _,xs) -> False
+
+dlast xs =
+    case eject xs of
+      Nothing -> Nothing
+      Just (_,ans) -> Just ans
+
+lastRight xs ys =
+    case eject ys of
+      Nothing -> dlast xs
+      Just (zs,D0 z) -> 
+          case dlast z of
+            Nothing -> lastRight xs zs
+            x -> x
+      Just (_,D2 _ z' z) -> 
+          case dlast z of
+            Nothing -> Just z'
+            x -> x
+
+alternateP Empty = True
+alternateP (Full (LSpine _ _ xs ys)) = 
+    topalt Any ys &&
+    case lastRight xs ys of
+      Nothing -> True
+      Just (RSpine _ zs _ _) -> topalt Any zs
+
+deach f xs =
+    case pop xs of
+      Nothing -> True
+      Just (y,ys) -> f y && deach f ys
+
+leven (LSpine _ _ xs ys) =
+    case pop ys of
+      Nothing -> deach reven xs
+      Just _ -> False
+reven (RSpine _ ys xs _) =
+    case pop ys of
+      Nothing -> deach leven xs
+      Just _ -> False
+
+seject xs ys =
+    case eject ys of
+      Nothing -> 
+          case eject xs of
+            Nothing -> Nothing
+            Just (zs,z) -> Just (zs,empty,z)
+      Just (zs,D0 z) -> 
+          case eject z of
+            Nothing -> seject xs zs
+            Just (ps,p) -> Just (xs,inject zs (D0 ps),p)
+      Just (zs,D2 z1 z2 z) -> 
+          case eject z of
+            Nothing -> 
+                case eject zs of
+                  Nothing -> Just (inject xs z1,empty,z2)
+                  Just (ps, D0 p) -> Just (xs, inject ps (D0 (inject p z1)), z2)
+                  Just (ps, D2 p1 p2 p) -> Just (xs, inject ps (D2 p1 p1 (inject p z1)), z2)
+            Just (ps,p) -> Just (xs,inject zs (D2 z1 z2 ps),p)
+
+
+seach f xs ys =
+    deach f xs &&
+    case pop ys of
+      Nothing -> True
+      Just (D0 z,zs) -> seach f z zs
+      Just (D2 z1 z2 z,zs) -> f z1 && f z2 && seach f z zs
+
+perfectP Empty = True
+perfectP (Full (LSpine a b xs ys)) =
+    case seject xs ys of
+      Nothing -> True
+      Just (ps,qs,RSpine _ ss rs _) -> 
+          seach reven ps qs &&
+          seach leven rs ss
+
+-- middle trees perfect
+
 {-
 npush x Empty = Single x 
 npush x (Single y) = More (LSpine x empty empty) Empty (RSpine empty empty y) 

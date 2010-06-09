@@ -181,7 +181,7 @@ lastPair ans cont (Full (NE _ Empty) Empty) = cont Medium Medium
 bottomSome Small Small = False
 bottomSome _ _ = True
 
-bottomNone Small Small = True
+bottomNone Small Small = False
 bottomNone Small _ = False
 bottomNone _ Small = False
 bottomNone _ _ = True

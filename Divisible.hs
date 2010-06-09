@@ -158,6 +158,14 @@ prefix2 x@(LSpine n a bs cs) =
 ronly (RSpine 1 _ _ x) = x
 ronly _ = error "ronly"
 
+-- TODO: replicate
+-- TODO: deques that can be joined on left or right
+-- TODO: tests
+-- TODO: slower split?
+-- TODO: proof of divide's evenness
+-- TODO: replace (since no split/join
+-- TODO: interpolation search? better measure on indexing complexit (fast near ends and middle?)
+
 npop (LSpine n a bs cs) =
     case mpop bs cs of
       Nothing -> (a,Empty)
@@ -168,6 +176,18 @@ dpop (Full xs) = Just $ npop $ prefix2 xs
 
 fromList xs = foldr dpush Empty xs
 toList xs = L.unfoldr dpop xs
+
+divide Empty = (Empty,Empty)
+divide (Full x) =
+    let (p,q) = ldivlr x 
+        q' = Full $ rtol q
+        p' = case p of
+               Nothing -> Empty
+               Just v -> Full v
+    in (p',q')
+
+size Empty = 0
+size (Full x) = lsize x
 
 data DBG = Leaf Bool String
          | Branch Bool String DBG DBG deriving (Show)
@@ -222,6 +242,11 @@ depthP Empty = True
 depthP (Full (LSpine _ _ x y)) = ldepth 1 Nothing x y
 
 data Force = Big | Small | Any
+
+{-
+biggest _ 1 = 1
+biggest Nothing n = maximum
+-}
 
 topalt Any x = 
     case pop x of

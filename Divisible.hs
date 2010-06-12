@@ -2,6 +2,7 @@ module Divisible where
 
 import Deque
 import qualified Data.List as L
+import Loose 
 
 type Nat = Integer
 
@@ -97,17 +98,84 @@ ldiv (LSpine a bs cs')
             Just (c',d) -> (LSpine a bs (inject cs (D0 c')), d)
 -}
 
-ltor x =
+{-
+BUG 
+eject $ push 4 $ push 3 $ push 2 (Empty :: DD TM Int)
+-}
+
+ltor' x =
     let (p,q) = ldivlr x 
     in case p of
          Nothing -> q
          Just p' -> lrr p' q
 
-rtol x =
+rtol' x =
     let (p,q) = rdivlr x 
     in case q of
          Nothing -> p
          Just q' -> lrl p q'
+
+data Lean l r = Lone r
+              | Lentrist l r
+              | Rightist l r r
+
+ltop (LSpine n a bs cs) =
+    case eject cs of
+      Nothing ->
+          case eject bs of 
+            Nothing -> Lone (RSpine 1 empty empty a)
+            Just (bs',b) -> Lentrist (LSpine (n-rsize b) a bs' empty) b
+      Just (cs',D0 c) -> 
+          case eject c of
+            Nothing -> ltop (LSpine n a bs cs')
+            Just (c',d) -> Lentrist (LSpine (n-rsize d) a bs (inject cs' (D0 c'))) d
+      Just (cs',D2 c1 c2 c) -> 
+          case eject c of
+            Nothing -> Rightist (LSpine (n-rsize c1-rsize c2) a bs cs') c1 c2
+            Just (c',d) -> Lentrist (LSpine (n-rsize d) a bs (inject cs' (D2 c1 c2 c'))) d
+
+data Rean l r = Rone l
+              | Rentrist l r
+              | Leftist l l r
+
+rtop (RSpine n cs bs a) =
+    case pop cs of
+      Nothing ->
+          case pop bs of 
+            Nothing -> Rone (LSpine 1 a empty empty)
+            Just (b,bs') -> Rentrist b (RSpine (n-lsize b) empty bs' a)
+      Just (D0 c,cs') -> 
+          case pop c of
+            Nothing -> rtop (RSpine n cs' bs a)
+            Just (d,c') -> Rentrist d (RSpine (n-lsize d) (push (D0 c') cs') bs a)
+      Just (D2 c1 c2 c,cs') -> 
+          case pop c of
+            Nothing ->  Leftist c1 c2 (RSpine (n-lsize c1-lsize c2) cs' bs a)
+            Just (d,c') -> Rentrist d (RSpine (n-lsize d) (push (D2 c1 c2 c') cs') bs a)
+
+-- TODO sizeP invariant
+
+ltor x =
+    case ltop x of
+      Lone y -> y
+      Lentrist y z -> lrr y z
+      Rightist p q r -> lrrr p q r
+
+lrrr p q (RSpine n ds es f) =
+    case pop ds of
+      Just (D2 _ _ _,_) -> RSpine (n+lsize p+rsize q) (push (D0 (push (lrl p q) empty)) ds) es f
+      _ -> RSpine (n+lsize p+rsize q) (push (D2 p (rtol' q) empty) ds) es f
+
+rtol x =
+    case rtop x of
+      Rone y -> y
+      Rentrist y z -> lrl y z
+      Leftist p q r -> llrr p q r
+
+llrr (LSpine n a bs cs) p q = 
+    case eject cs of
+      Just (_,D2 _ _ _) -> LSpine (n+lsize p+rsize q) a bs (inject cs (D0 (push (lrr p q) empty)))
+      _ -> LSpine (n+lsize p+rsize q) a bs (inject cs (D2 (ltor' p) q empty))
 
 mpush a bs cs = 
     case pop bs of
@@ -182,14 +250,6 @@ prefix2 x@(LSpine n a bs cs) =
 ronly (RSpine 1 _ _ x) = x
 ronly _ = error "ronly"
 
--- TODO: replicate
--- TODO: deques that can be joined on left or right
--- TODO: tests
--- TODO: slower split?
--- TODO: proof of divide's evenness
--- TODO: replace (since no split/join
--- TODO: interpolation search? better measure on indexing complexit (fast near ends and middle?)
-
 npop (LSpine n a bs cs) =
     case mpop bs cs of
       Nothing -> (a,Empty)
@@ -197,6 +257,68 @@ npop (LSpine n a bs cs) =
 
 dpop Empty = Nothing
 dpop (Full xs) = Just $ npop $ prefix2 xs
+
+meject cs bs = 
+    case eject bs of
+      Nothing ->
+          case eject cs of
+            Nothing -> Nothing
+            Just (cs',D2 c1 c2 c') -> Just (cs',inject c' c1,c2)
+            _ -> error "meject D0"
+      Just (bs',b) -> Just (inject cs (D0 bs'),empty,b)
+
+suffix2 x@(RSpine n cs bs a) =
+    case eject cs of
+      Just (fs,D0 es) ->
+          case meject fs es of
+            Nothing -> RSpine n empty bs a
+            Just (rs,qs,p) -> 
+                let (Just p1,p2) = ldivlr p
+                in RSpine n (inject rs (D2 p1 (rtol p2) qs)) bs a
+      _ -> x
+
+lonly (LSpine 1 x _ _) = x
+lonly _ = error "lonly"
+
+neject (RSpine n cs bs a) =
+    case meject cs bs of
+      Nothing -> (Empty,a)
+      Just (ps,qs,r) -> (Full (rtol (RSpine (n-1) ps qs (lonly r))),a)
+
+deject Empty = Nothing
+deject (Full xs) = Just $ neject $ suffix2 $ ltor xs
+
+instance Deque d => Deque (DD d) where
+    empty = Empty
+    push = dpush
+    pop = dpop
+    inject = dinject
+    eject = deject
+
+instance ({- Loose d, -}Deque d) => Loose (DD d a) where
+    proper x = depthP x && alternateP x && perfectP x {- && nestP x -}
+
+{-
+nestP Empty = True
+nestP (Full l) = nestL l
+
+nestL (LSpine _ x xs) =
+    case (pop x, pop xs) of
+      (Nothing, Nothing) -> True
+      _ -> proper x && proper seach nestR x xs
+            
+    proper x &&
+    case pop xs of
+      Nothing -> True
+      Just (D0 
+-}
+-- TODO: replicate
+-- TODO: deques that can be joined on left or right
+-- TODO: tests
+-- TODO: slower split?
+-- TODO: proof of divide's evenness
+-- TODO: replace (since no split/join
+-- TODO: interpolation search? better measure on indexing complexit (fast near ends and middle?)
 
 fromList xs = foldr dpush Empty xs
 toList xs = L.unfoldr dpop xs

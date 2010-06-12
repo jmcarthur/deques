@@ -1,5 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-
 module Divisible where
 
 import Deque
@@ -134,6 +132,32 @@ npush x (LSpine n a bs cs) =
 
 dpush x Empty = Full (LSpine 1 x empty empty)
 dpush x (Full xs) = Full $ npush x $ prefix0 xs
+
+minject cs bs a = 
+    case eject bs of
+      Nothing ->
+          case eject cs of
+            Nothing -> (empty,inject empty a)
+            Just (cs', D0 c) -> (cs',inject c a)
+            _ -> error "minject D2"
+      Just (bs',b) -> (inject cs (D2 b a bs'),empty)
+
+suffix0 x@(RSpine n cs bs a) =
+    case eject cs of
+      Just (fs, D2 d c es) ->
+          let dc = lrl d (ltor c)
+              (hs,gs) = minject fs es dc
+          in RSpine n (inject hs (D0 gs)) bs a
+      _ -> x
+
+ninject (RSpine n cs bs a) x =
+    let (cs',bs') = minject cs bs (LSpine 1 a empty empty)
+    in RSpine (n+1) cs' bs' x
+
+dinject' Empty x = RSpine 1 empty empty x
+dinject' (Full xs) x = ninject (suffix0 $ ltor xs) x
+
+dinject xs x = Full $ rtol $ dinject' xs x
 
 mpop bs cs = 
     case pop bs of

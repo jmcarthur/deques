@@ -6,11 +6,11 @@ import Loose
 
 type Nat = Integer
 
-data Leven d s = L0 (d s)
-               | L2 s s (d s)
+data Leven d s = L0 !(d s)
+               | L2 !s !s !(d s)
 
-data Reven d s = R0 (d s)
-               | R2 (d s) s s
+data Reven d s = R0 !(d s)
+               | R2 !(d s) !s !s
 
 instance (Deque d, Show s) => Show (Leven d s) where
     show (L0 x) = "(L0 "++(showDeque x)++")"
@@ -20,8 +20,8 @@ instance (Deque d, Show s) => Show (Reven d s) where
     show (R0 x) = "(R0 "++(showDeque x)++")"
     show (R2 x y z) = "(R2 ("++(showDeque x)++") "++(show y)++" "++(show z)++")"
 
-data LSpine d a = LSpine Nat a (d (RSpine d a)) (d (Leven d (RSpine d a)))
-data RSpine d a = RSpine Nat (d (Reven d (LSpine d a))) (d (LSpine d a)) a
+data LSpine d a = LSpine !Nat !a !(d (RSpine d a)) !(d (Leven d (RSpine d a)))
+data RSpine d a = RSpine !Nat !(d (Reven d (LSpine d a))) !(d (LSpine d a)) !a
 
 instance (Show a, Deque d) => Show (LSpine d a) where
     show (LSpine n x ys zs) = "(LSpine "++(show n)++" "++(show x)++" "++(showDeque ys)++" "++(showDeque zs)++")"
@@ -36,14 +36,15 @@ dequeToList xs =
       Just (y,ys) -> y : (dequeToList ys)
 
 data DD d a = Empty
-            | Full (LSpine d a) deriving (Show)
+            | Full !(LSpine d a) deriving (Show)
 
+{-
 full x =
     case pop x of
       Nothing -> False
       _ -> True
-
-nil x = not (full x)
+-}
+--nil x = not (full x)
 
 rsize (RSpine n _ _ _) = n
 lsize (LSpine n _ _ _) = n
@@ -403,14 +404,17 @@ nestL (LSpine _ x xs) =
 
 fromList xs = foldr dpush Empty xs
 toList xs = L.unfoldr dpop xs
-
+-}
 divide Empty = (Empty,Empty)
 divide (Full x) =
-    let (p,q) = l2div x 
-        q' = Full $ rtol q
-        p' = Full p
-    in (p',q')
--}
+    case ltop x of
+      Lingle p -> (Full (LSpine 1 p empty empty),Empty)
+      Liny p -> divide (Full p)
+      Lenter p q -> (Full p, Full (rtol q))
+      Rightist p q r -> 
+          if lsize p > rsize r
+          then (Full p, Full (lrl (rmidl q) r))
+          else (Full (lrl p q), Full (rtol r))
 
 size Empty = 0
 size (Full x) = lsize x

@@ -195,7 +195,7 @@ cons13 x y xs t@(Full (NE (Stack p q pq) r) s) =
        then Full (NE (Stack x y xs) (Full (Stack p q pq) r)) s
        else Full (NE (Stack x y xs) Empty) t
 
-empty = Deque M0 Empty None
+tempty = Deque M0 Empty None
 
 npush :: a -> Deque a -> Deque a
 npush x (Deque M0 Empty None) = Deque M0 Empty (Some x) 
@@ -219,7 +219,7 @@ ninject (Deque (MS z y zs) rs q) x = Deque M0 (cons13 (B1 z) (B2 y x) zs rs) q
 
 npop :: Deque a -> Maybe (a,Deque a)
 npop (Deque M0 Empty None) = Nothing
-npop (Deque M0 Empty (Some y)) =  Just (y,empty)
+npop (Deque M0 Empty (Some y)) =  Just (y,tempty)
 npop (Deque M0 (Full (NE (Stack (B2 y x) (B1 z) zs) Empty) xs) q) = Just (y,Deque (MS x z zs) xs q)
 npop (Deque M0 (Full (NE (Stack (B2 y x) (B1 z) zs) (Full r rs)) xs) q) = Just (y,Deque (MS x z zs) (Full (NE r rs) xs) q)
 npop (Deque M0 (Full (NE (Stack (B2 y x) z zs) Empty) xs) q) = Just (y,Deque M0 (cons13 (B1 x) z zs xs) q)
@@ -232,7 +232,7 @@ npop (Deque (MS y z zs) rs q) = Just (y,Deque M0 (cons13 B0 (B1 z) zs rs) q)
 
 neject :: Deque a -> Maybe (Deque a,a)
 neject (Deque M0 Empty None) = Nothing
-neject (Deque M0 Empty (Some y)) = Just (empty,y)
+neject (Deque M0 Empty (Some y)) = Just (tempty,y)
 neject (Deque M0 (Full (NE (Stack (B1 x) (B2 z y) zs) Empty) xs) q) = Just (Deque (MS x z zs) xs q,y)
 neject (Deque M0 (Full (NE (Stack (B1 x) (B2 z y) zs) (Full r rs)) xs) q) = Just (Deque (MS x z zs) (Full (NE r rs) xs) q, y)
 neject (Deque M0 (Full (NE (Stack z (B2 x y) zs) Empty) xs) q) = Just (Deque M0 (cons13 z (B1 x) zs xs) q, y)

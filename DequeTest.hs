@@ -11,6 +11,7 @@ import Test.QuickCheck
 
 data Op a = Push a | Inject a | Pop | Eject deriving (Show)
 
+{-
 opSeqs 0 = []
 opSeqs 1 = [([Push 0],1), ([Inject 0],1)]
 opSeqs n =
@@ -18,6 +19,7 @@ opSeqs n =
         f (l,0) = [((Push n):l,1),((Inject n):l,1)]
         f (l,k) = [((Push n):l,k+1),((Inject n):l,k+1),(Pop:l,k-1),(Eject:l,k-1)]
     in concatMap f (opSeqs (n-1))
+-}
 
 act (Push x) y = push x y
 act (Inject x) y = inject y x
@@ -38,6 +40,14 @@ slist x =
       y S.:< ys -> y:(slist ys)
       _ -> []
 
+popList x = unfoldr pop x
+
+ejectList xs = ejectList' xs []
+ejectList' xs r =
+    case eject xs of
+      Nothing -> r
+      Just (ys,y) -> ejectList' ys (y:r)
+
 check x y =
     let z = slist y
     in popList x == z
@@ -48,12 +58,18 @@ check x y =
 
 
 
-form tt x = (foldr act (empty `asTypeOf` tt) x, foldr acts S.empty x)
-checkAll n tt = filter (not . uncurry check) $ map (form tt . fst) $ opSeqs n
-checkOne tt = uncurry check . form tt
+checkOps dqt xs = checkOps' xs (empty `asTypeOf` dqt) S.empty
+checkOps' [] x y = check x y
+checkOps' (p:ps) x y =
+    check x y &&
+    checkOps' ps (act p x) (acts p y)
+
+--form tt x = (foldr act (empty `asTypeOf` tt) x, foldr acts S.empty x)
+--checkAll n tt = filter (not . uncurry check) $ map (form tt . fst) $ opSeqs n
+--checkOne tt = uncurry check . form tt
 
 prob :: Int
-prob = 2^12
+prob = 2^8
 
 arbList 0 i = 
     do b <- arbitrary
@@ -81,12 +97,36 @@ arbList n i =
                  return $ hed:tyl
           else return [hed]
 
+arbSet 0 i = 
+    do b <- arbitrary
+       let hed = if b
+                 then Push i
+                 else Inject i
+       if i > 0
+          then
+              do tyl <- arbSet 1 (i-1)
+                 return $ hed:tyl
+          else return [hed]
+arbSet n i = 
+    do b0 <- arbitrary
+       b1 <- arbitrary
+       let (hed,m) = case (b0,b1) of 
+                       (True,True) -> (Push i,n+1)
+                       (True,_) -> (Inject i,n+1)
+                       (False,False) -> (Pop,n-1)
+                       _ -> (Eject,n-1)
+       if i > 0
+          then
+              do tyl <- arbSet m (i-1)
+                 return $ hed:tyl
+          else return [hed]
+
 newtype Ops = Ops [Op Int] deriving (Show)
 
 instance Arbitrary Ops where
-    arbitrary = fmap Ops $ arbList 0 0
+    arbitrary = fmap Ops $ arbSet 0 prob
 
-checkArb tt (Ops r) = uncurry check $ form tt $ reverse r
+checkArb dqt (Ops r) = checkOps dqt $  r
 {-
 checkArb tt =
     do ll <- arbList
@@ -98,13 +138,6 @@ pushList x = foldr push empty x
 
 injectList x = foldl' inject empty x
 
-popList x = unfoldr pop x
-
-ejectList xs = ejectList' xs []
-ejectList' xs r =
-    case eject xs of
-      Nothing -> r
-      Just (ys,y) -> ejectList' ys (y:r)
 
 popPreserves f x =
     case pop x of

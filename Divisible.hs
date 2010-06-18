@@ -83,6 +83,14 @@ ltop (LSpine n a bs cs) =
             Nothing -> Rightist (LSpine (n-rsize c1-rsize c2) a bs cs') c1 c2
             Just (c',d) -> Lenter (LSpine (n-rsize d) a bs (inject cs' (L2 c1 c2 c'))) d
 
+treplicate 0 x = Empty
+treplicate 1 x = Full (LSpine 1 x empty empty)
+treplicate n x = 
+    let (m,r) = n `quotRem` 2
+        Full xs = treplicate m x
+        Full ys = if r == 1 then dinject (Full xs) x else Full xs
+    in Full $ lrl xs $ ltor ys
+
 data RMid x l r = RMid1 x
                 | RMid2 l r
 

@@ -4,7 +4,7 @@ module CheckDivisible where
 
 import Divisible
 import TarjanMihaesau
-import DequeTest
+import DivisibleTest
 
 import Test.QuickCheck
 import Deque

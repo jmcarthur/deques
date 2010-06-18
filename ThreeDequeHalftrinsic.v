@@ -194,6 +194,123 @@ Fixpoint bufsAltStart2 a b (m:Stuck a b) c d (n:Nest Stuck c d) (*d e (r:ThreeSt
           end
   end.
 
+
+Ltac equate x y :=
+  let H := fresh "H" in
+    assert (H : x = y); [ reflexivity | clear H ].
+
+Ltac crush1 :=
+  crush;
+  match goal with
+    | [_:context[
+      match topCheck ?x ?y with
+        | None => _
+        | Some _ => _
+      end] |- _]
+      => cutThis (topCheck x y); desall
+    | [_:context[
+      match bufSize ?x with
+        | Small => _
+        | Medium => _
+        | Large => _
+      end] |- _]
+      => cutThis x; desall
+    | [|- context[
+      match topCheck ?x ?y with
+        | None => _
+        | Some _ => _
+      end]]
+      => cutThis (topCheck x y); desall
+    | [_:context[if nextTop1 ?x ?y then _ else _] |- _]
+      => cutThis (nextTop1 x y); desall
+    | [|- context[if nextTop1 ?x ?y then _ else _]]
+      => cutThis (nextTop1 x y); desall
+    | [|- context[if sameSize ?x ?y then _ else _]]
+      => cutThis (sameSize x y); desall
+    | [_: context[if sameSize ?x ?y then _ else _] |- _]
+      => cutThis (sameSize x y); desall
+    | [_:context[
+      match top2' ?x ?y with
+        | None => _
+        | Some _ => _
+      end] |- _]
+      => cutThis (top2' x y); desall
+    | [_:context[
+      match top3 ?x ?y with
+        | None => _
+        | Some _ => _
+      end] |- _]
+      => cutThis (top3 x y); desall
+    | [|- context[
+      match top3 ?x ?y with
+        | None => _
+        | Some _ => _
+      end]]
+      => cutThis (top3 x y); desall
+    | [ H:_ |- context[
+      match ?x with
+        | None => _
+        | Some _ => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_ |- context[
+      match ?x in MStack _ _ return _ with
+        | M0 => _
+        | MS _ _ _ _ => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_ |- context[
+      match ?x in Nest _ _ _ return _ with
+        | Empty => _
+        | Full _ _ _ _ => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_ |- context[
+      match ?x with
+        | NE _ _ _ => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_ |- context[
+      match ?x with
+        | Stack _ _ _ => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_,
+        _:context[
+      match ?x with
+        | Stack _ _ _ => _
+      end] |- _] => equate H x; cutThis x; desall
+    | [ H:_ |- context[
+      match ?x with
+        | B0 => _
+        | B1 _ => _
+        | B2 _ _ => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_ |- context[
+      match ?x with
+        | Prefix => _
+        | Suffix => _
+        | Twofix => _
+      end]] => equate H x; cutThis x; desall
+    | [ H:_,
+        _:context[
+      match ?x with
+        | Prefix => _
+        | Suffix => _
+        | Twofix => _
+      end] |- _] => equate H x; cutThis x; desall
+    | [ H:_,
+        _:context[
+      match ?x with
+        | B0 => _
+        | B1 _ => _
+        | B2 _ _ => _
+      end] |- _] => equate H x; cutThis x; desall
+    | [|- context[
+      match bufsAltStart2 ?p ?q ?r ?s with
+        | None => _
+        | Some _ => _
+      end]]
+      => cutThis (bufsAltStart2 p q r s); desall
+    | _ => idtac
+  end.
+
+
 Lemma medPreNone :
   forall 
     C D (y:Nest Stuck C D) 
@@ -202,6 +319,14 @@ Lemma medPreNone :
     None = bufsAltStart2 x y q p.
 Proof.
   induction y; crush.
+
+  Ltac crush1 :=
+    crush;
+    match goal with
+      | [|- None = match x with
+                     | Stack _ _ _ => _
+
+
   destruct x; crush.
   destruct p; destruct q; destruct b0; destruct b; crush.
   destruct x; crush.
@@ -400,86 +525,6 @@ Proof.
           destruct r; crush.
 Abort.
 
-Require Import List.
-Require Import Arith.
-
-Definition psize (xy: prod (list nat) (list nat)) :=
-  let (x,y) := xy in length x + length y.
-
-Require Import Recdef.
-Require Import Omega.
-
-Function meldFunc (xy : prod (list nat) (list nat)) {measure psize xy} : list nat :=
-  let (x,y) := xy in
-    match x with
-      | nil => y
-      | p::ps => 
-        match y with
-          | nil => p::ps
-          | r::rs => 
-            match nat_compare p r with
-              | Lt => p :: meldFunc (ps,y)
-              | Gt => r :: meldFunc (x,rs)
-              | Eq => (p+r) :: (meldFunc (ps,rs))
-            end
-        end
-    end.
-intros. unfold psize. simpl in *. omega.
-intros. unfold psize. simpl in *. omega.
-intros. unfold psize. simpl in *. omega.
-Defined.
-
-Fixpoint meld1 f p ps z :=
-  match z with
-    | nil => (p::ps)
-    | r::rs => 
-      match nat_compare p r with
-        | Lt => p :: f z
-        | Gt => r :: meld1 f p ps rs
-        | Eq => (p+r) :: (f rs)
-      end
-  end.
-  
-
-Fixpoint meldUniq x y {struct x} :=
-  match x with
-    | nil => y
-    | p::ps => 
-      let f := meldUniq ps in
-        meld1 f p ps y
-  end.
-
-Check meld1.
-
-Definition maxm x y :=
-  match nat_compare x y with
-    | Lt => y
-    | _ => x
-  end.
-
-Definition f0' g (i k : nat) : nat :=
-  match k with
-  | 0 => 0
-  | S m =>
-    if eq_nat_dec i k 
-      then S (g i k)
-      else S (maxm (g i k) (g m k))
-  end.
-
-Fixpoint f0 (i j k : nat) {struct k} : nat :=
-  match k with
-  | 0 => 0
-  | S m =>
-    let g := fun p q => f0 p q m in
-      if eq_nat_dec j k 
-        then f0' g i k
-        else if eq_nat_dec i k 
-          then S (maxm (f0' g i k)   (* problem here *)
-                       (f0 i j m))
-          else S (maxm (f0' g i k) (* same one here *)
-                       (maxm (f0 i j m) (f0 k j m)))
-  end.
-
 Fixpoint bufsAltStart a b (r:ThreeStack a b) (xs ys:Size) :=
   match r with
     | Empty => True
@@ -490,39 +535,10 @@ Fixpoint bufsAltStart a b (r:ThreeStack a b) (xs ys:Size) :=
       end
   end.
 
-
-
-(*
-Fixpoint bufsAltStart2 (f:Size -> Size -> Prop) a b (m:Stuck a b) c (n:Nest Stuck b c) (*d e (r:ThreeStack d e) *) (xs ys:Size) :=
-  match m with
-    | Stack x y _ =>
-      let xs' := bufSize x in
-        let ys' := bufSize y in
-          (~ (SameSize xs xs')
-           /\
-           ~ (SameSize ys ys')
-           /\
-           (match n with
-              | Empty => f 
-              | Full _ _ z zs => bufsAltStart2 f z zs (*r*)
-            end) (nextSize xs xs') (nextSize ys ys')
-           )
-  end.
-
-Fixpoint bufsAltStart a b (r:ThreeStack a b) (xs ys:Size) :=
-  match r with
-    | Empty => True
-    | Full _ _ (NE _ p ps) qs => bufsAltStart2 (bufsAltStart qs) p ps (*qs*) xs ys
-  end.
-*)
-
 Definition BufsAlternate t (x:Deq t) :=
   match x with
     | Deque _ _ _ y _ => bufsAltStart y Medium Medium
   end.
-
-
-
 
 Definition NextTop1 x y :=
   match x,y with
@@ -530,8 +546,6 @@ Definition NextTop1 x y :=
     | Suffix,Suffix => True
     | _,_ => False
   end.
-
-
 
 Definition top2 a b (x:StackStack a b) :=
   match x with
@@ -809,6 +823,51 @@ Defined.
 Print npushHelp.
 *)
 
+Ltac sizeSplit t :=
+  here3; eauto;
+    match goal with
+      | [_ : _ = sameSize ?a _,
+        b : Size |- _]
+        => equate a b; destruct a; sizeSplit t
+      | [_ : _ = sameSize _ (bufSize ?a),
+        b : Buffer _ |- _]
+        => equate a b; destruct a; sizeSplit t
+      | [|- Some _ <> None] => discriminate
+      | [|- Some _ <> Some _] => discriminate
+      | _ => let foo := eapply t; here3 in try (abstract foo)
+    end.
+
+Ltac nextSize t :=
+  sizeSplit t;
+  match goal with
+    | [|- Some _ = Some _] => f_equal; nextSize t
+    | [_: _ = nextSize Medium (bufSize ?b) |- _]
+        => destruct b; nextSize t
+    | [H : Some (Medium,_) = bufsAltStart2 _ _ Small _ |- _]
+        => eapply medPreSomeExt in H; nextSize t
+    | [H : Some (Medium,_) = bufsAltStart2 _ _ Large _ |- _]
+        => eapply medPreSomeExt in H; nextSize t
+    | _ => auto
+  end.
+
+  Ltac topFix' t :=
+    nextSize t;
+    match goal with
+      | [_:Some Suffix = top2' (Stack (B2 _ _) _ _) ?a ,
+         A:_ |- _]
+        => equate A a; assert False; destruct a; topFix' t
+      | [_:Some Suffix = top2' (Stack (@B0 _) _ _) ?a ,
+         A:_ |- _]
+        => equate A a; assert False; destruct a; topFix' t
+      | _ => nextSize t
+    end.
+  Ltac topFix t :=
+    topFix' t;
+    match goal with
+      | _ => let foo := eapply t; eauto; topFix' t in try (abstract foo)
+    end.
+
+(*
 Lemma startExt :
   forall A B C D (f:Stuck A B) (N:Nest Stuck C D)
     p w,
@@ -823,23 +882,12 @@ Proof.
   generalize dependent A;
     generalize dependent B.
   
-  Ltac sizeSplit t :=
-    here3; eauto;
-    match goal with
-      | [_ : _ = sameSize ?a _,
-         b : Size |- _]
-        => equate a b; destruct a; sizeSplit t
-      | [_ : _ = sameSize _ (bufSize ?a),
-         b : Buffer _ |- _]
-        => equate a b; destruct a; sizeSplit t
-      | [|- Some _ <> None] => discriminate
-      | [|- Some _ <> Some _] => discriminate
-      | _ => let foo := eapply t; here3 in try (abstract foo)
-    end.
   induction N; sizeSplit IHN.
 Qed.
 Hint Resolve startExt.
+*)
 
+(*  
 Lemma bufsAlt2PreExtNone : 
   forall 
     B C (N:Nest Stuck B C)
@@ -860,21 +908,11 @@ Lemma bufsAlt2PreExtSoMed :
 Proof.
   Print nextSize.
 
-  Ltac nextSize t :=
-    sizeSplit t;
-    match goal with
-      | [|- Some _ = Some _] => f_equal; nextSize t
-      | [_: _ = nextSize Medium (bufSize ?b) |- _]
-        => destruct b; nextSize t
-      | [H : Some (Medium,_) = bufsAltStart2 _ _ Small _ |- _]
-        => eapply startExt in H; nextSize t
-      | [H : Some (Medium,_) = bufsAltStart2 _ _ Large _ |- _]
-        => eapply startExt in H; nextSize t
-      | _ => auto
-    end.
   induction N; nextSize IHN.
 Qed.
 Hint Resolve bufsAlt2PreExtSoMed.
+*)
+
 
 Lemma bufsAlt2PreExtSoExt : 
   forall 
@@ -888,26 +926,19 @@ Lemma bufsAlt2PreExtSoExt :
         topShape (Full (NE M N) Empty) ->
         False.
 Proof.
-  Ltac topFix' t :=
-    nextSize t;
-    match goal with
-      | [_:Some Suffix = top2' (Stack (B2 _ _) _ _) ?a ,
-         A:_ |- _]
-        => equate A a; assert False; destruct a; topFix' t
-      | [_:Some Suffix = top2' (Stack (@B0 _) _ _) ?a ,
-         A:_ |- _]
-        => equate A a; assert False; destruct a; topFix' t
-      | _ => nextSize t
-    end.
-  Ltac topFix t :=
-    topFix' t;
-    match goal with
-      | _ => let foo := eapply t; eauto; topFix' t in try (abstract foo)
-    end.
   induction N; topFix IHN.
 Qed.
 Hint Resolve bufsAlt2PreExtSoExt.
   
+Ltac ese t :=
+    topFix t;
+    match goal with
+      | [_:?c <> Medium,
+         _:Some (?c,_) = bufsAltStart2 _ _ Medium _ |- False]
+        => eapply bufsAlt2PreExtSoExt; eauto; ese t
+      | _ => let foo := eapply t; eauto; topFix t in try (abstract foo)
+    end.
+
 Lemma bufsAlt2PreExtSoExtExt : 
   forall 
     B C (N:Nest Stuck B C)
@@ -923,14 +954,6 @@ Lemma bufsAlt2PreExtSoExtExt :
         end.
 Proof.
 
-  Ltac ese t :=
-    topFix t;
-    match goal with
-      | [_:?c <> Medium,
-         _:Some (?c,_) = bufsAltStart2 _ _ Medium _ |- False]
-        => eapply bufsAlt2PreExtSoExt; eauto; ese t
-      | _ => let foo := eapply t; eauto; topFix t in try (abstract foo)
-    end.
   induction N; ese IHN.
 Qed.
 Hint Resolve bufsAlt2PreExtSoExtExt.
@@ -985,59 +1008,6 @@ Qed.
 Hint Resolve bufsAlt2PreExtSoMedSml.
 
 
-(*
-Lemma startFlip :
-  forall A B C (f:Stuck A B) (N:Nest Stuck B C)
-    p w,
-    p <> Medium ->
-    forall q z,
-      Some (q,z) = bufsAltStart2 f N p w ->
-      q <> p ->
-      forall t r,
-        Some (t,z) = bufsAltStart2 f N r w ->
-        t = q.
-Proof.
-  intros A B C f N.
-  generalize dependent A.
-  induction N; desall.
-  destruct w; destruct b0; desall;
-    destruct r; desall;
-      destruct p; desall;
-        destruct b; desall.
-  eapply IHN.
-  Focus 2. eauto.
-  Focus 3. eauto.
-  destruct b0; destruct p; desall;
-    destruct w; destruct r; desall;
-      destruct w; destruct b1; desall.
-  destruct p; destruct b0; desall.
-  subst.
-  destruct b0; destruct p; desall;
-    destruct w; destruct r; desall.
-  Focus 3. eauto.
-  eauto. 
-
-
-  destruct p; destruct b; destruct r; 
-    destruct b0; destruct w; destruct s; desall.
-  eapply IHN. Focus 2. eauto.
-  destruct p; desall; destruct b1; desall; destruct r; desall;
-    destruct b0; desall; destruct w; desall; destruct s; desall;
-      subst; desall.
-  eapply IHN. Focus 2. eauto.
-  destruct p; desall; destruct b1; desall; destruct r; desall;
-    destruct b0; desall; destruct w; desall; destruct s; desall;
-      subst; desall.
-  destruct q; desall; destruct z; desall;
-    destruct p; desall; destruct b1; desall; destruct r; desall;
-       destruct w; desall; destruct s; desall;
-        subst; desall.
-  
-
-  destruct p; destruct b0; destruct b1; destruct w; desall.
-Qed.
-Hint Resolve startExt.
-*)
 
 (*
 Lemma bufsAltPreExt :
@@ -1727,6 +1697,7 @@ Proof.
 Qed.
 Hint Resolve npushSmall4.
 
+(*
 Lemma npushSmall5 :
   forall 
      C D (H0 : Nest StackStack C D)
@@ -1824,6 +1795,7 @@ Qed.
    | Some (pair xs'0 ys'0) => bufsAltStart H0 xs'0 ys'0
    end
 *)
+*)
 
 Lemma npushBufs :
   forall a (x:a) xs,
@@ -1832,6 +1804,144 @@ Lemma npushBufs :
     BufsAlternate xs ->
     BufsAlternate (npush x xs).
 Proof.
+  intros.
+  unfold BufsAlternate in *.
+  destruct xs; simpl in *.
+  destruct t; simpl in *.
+  desall.
+
+  desall.
+  unfold cons13; desall.
+  cutThis (bufsAltStart2 (Stack b2 b3 m0) n Small Small); crush.
+  eapply medPreNone in HeqH1. rewrite <- HeqH1 in HeqH3; crush.
+  destruct p.
+
+  cutThis (bufsAltStart2 (Stack b2 b3 m0) n Small Small); crush.
+  destruct p; crush.
+
+  destruct s2; desall.
+  pose HeqH3 as hh.
+  eapply extPreSomeSame2 in hh. desall.
+  pose HeqH1 as hh.
+  rewrite <- H2 in hh. desall.
+  destruct H0; desall.
+  eapply medPreNone in HeqH0. 
+  rewrite <- HeqH0 in H1; crush.
+  destruct p; desall.
+
+
+  cutThis (bufsAltStart2 s1 n0 Small s3); crush.
+  destruct p; crush.
+  destruct s0; desall.
+  pose HeqH7 as hh.
+  eapply extPreSomeSame2 in hh. desall.
+  pose HeqH0 as hh.
+  rewrite <- H3 in hh. desall. crush. crush.
+  Check medPreNone.
+  destruct H0; desall.
+  cutThis (bufsAltStart2 s1 n0 Small s3); crush.
+  destruct p; crush.
+  
+  rewrite <- HeqH0 in Heq
+
+
+  assert 
+    (forall E F (z:ThreeStack E F) 
+      s t r u A B (x:Stuck A B) C D (y:Nest Stuck C D) v
+      m n w,
+      Some (s,t) = bufsAltStart2 x y m v ->
+      bufsAltStart z s t ->
+      Some (r,u) = bufsAltStart2 x y n w ->
+      bufsAltStart z r u) as ans.
+  clear.
+  induction z; desall.
+  cutThis (bufsAltStart2 s0 n0 s t); crush.
+  destruct p; desall. Focus 2.
+  cutThis (bufsAltStart2 s0 n0 s t); crush.
+  destruct p; desall. destruct p0; desall.
+  eapply IHz. Focus 2. eapply H0.
+  Focus 2. eapply HeqH0.
+  Focus 2. eauto.
+  pose (IHz _ _ _ _ _ _ _ _ _ _ _ _ _ _ HeqH0 H0 H1).
+  
+
+  destruct r; desall.
+  eapply IHz in HeqH0. Focus 3.
+
+  destruct t; desall.
+
+  clear HeqH1 HeqH0 H s m.
+
+  destruct p.
+  
+  assert 
+    (forall E F (z:ThreeStack E F) 
+      s t A B (x:Stuck A B) C D (y:Nest Stuck C D) v,
+      Some (s,t) = bufsAltStart2 x y Small v ->
+      bufsAltStart z s t ->
+      None = bufsAltStart2 x y Medium v ->
+      False) as ans.
+  clear.
+  induction z; desall.
+  eapply medPreNone in H1. rewrite <- H1 in H. crush.
+  eapply medPreNone in H1. rewrite <- H1 in H. crush.
+  
+  eapply ans; eauto.
+  destruct p.
+  
+  destruct f.
+  cutThis (bufsAltStart2 s0 n s t). crush. destruct p.
+  eapply IHz. eapply HeqH2.
+  destruct
+
+
+  eapply medPreNone in HeqH2. rewrite <- HeqH2 in H1. crush.
+  destruct p; desall. destruct s0; desall.
+  eapply medPreSomeOth in HeqH2; desall.
+  rewrite <- H0 in H1.
+  destruct t; desall. rewrite <- H2 in H1. crush.
+  eapply medPreSomeMed in HeqH2. rewrite <- HeqH2 in H1.
+  destruct t; desall.
+  eapply medPreNone in HeqH0. rewrite <- HeqH0 in H1. crush.
+  destruct p; desall. destruct s0; desall.
+  eapply medPreSomeOth in HeqH0; desall.
+  rewrite <- H0 in H1.
+  destruct t; desall. rewrite <- H2 in H1. crush.
+  eapply medPreSomeMed in HeqH0. rewrite <- HeqH0 in H1.
+  destruct t; desall.
+  eapply medPreNone in HeqH0. rewrite <- HeqH0 in H1. crush.
+  destruct p; desall. destruct s0; desall.
+
+  Check medPreSomeOth.
+  Check medPreSomeExt.
+  destruct m; desall. destruct t; desall.
+  Focus 5.
+
+  destruct s0; simpl in *.
+  cutThis (bufsAltStart2 s0 n Medium Medium).
+  inversion H1.
+  destruct p.
+  destruct s1.
+  eapply medPreSomeOth in HeqH2; desall.
+
+  destruct s0; simpl in *.
+  destruct b2; simpl in *.
+  destruct m; desall.
+  destruct t; desall.
+  Print cons13.
+  crush.
+  Print SM.
+
+
+
+
+
+
+
+
+
+
+
   intros.
   destruct xs; ese H.
   badMatch H.

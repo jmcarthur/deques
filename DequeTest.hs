@@ -69,7 +69,7 @@ checkOps' (p:ps) x y =
 --checkOne tt = uncurry check . form tt
 
 prob :: Int
-prob = 2^8
+prob = 2^9
 
 arbList 0 i = 
     do b <- arbitrary

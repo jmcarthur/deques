@@ -405,7 +405,7 @@ Ltac equate x y :=
   let H := fresh "H" in
     assert (H : x = y); [ reflexivity | clear H ].
 
-Ltac pisp t := auto;
+Ltac pisp t n := auto;
       try subst;
         unfold bufferColor in *;
           unfold toListBufferC in *; (*
@@ -435,7 +435,7 @@ Ltac pisp t := auto;
    | [ H : True |- _] => clear H; pisp t
    | [ H : ?a = ?a |- _] => clear H;  pisp t
    *)
-     | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t 
+     | [ H : Some ?a = Some ?b |- _] => inversion_clear H; subst;  pisp t n
 
 (*
      | [ |- regular (Full _ _) ] => unfold regular;  pisp t 
@@ -451,123 +451,94 @@ Ltac pisp t := auto;
 *)
        
 (*     | [H : ?A \/ ?B |- _] => destruct H;  pisp t *)
-     | [ H : _ /\ _ |- _ ] => destruct H;  pisp t 
-     | [ |- _ /\ _ ] => split;  pisp t 
-     | [ H : prod _ _ |- _] => cutThis H; pisp t 
+     | [ H : _ /\ _ |- _ ] => destruct H;  pisp t n
+     | [ |- _ /\ _ ] => split;  pisp t n
+     | [ H : prod _ _ |- _] => cutThis H; pisp t n
        
-     | [ H : _ = Red |- _] => rewrite H in *; pisp t
-     | [ H : _ = Yellow |- _] => rewrite H in *; pisp t
-     | [ H : _ = Green |- _] => rewrite H in *; pisp t
-     | [ H : Red = _ |- _] => rewrite <- H in *; pisp t
-     | [ H : Yellow = _ |- _] => rewrite <- H in *; pisp t
-     | [ H : Green = _ |- _] => rewrite <- H in *; pisp t
+     | [ H : _ = Red |- _] => rewrite H in *; pisp t n
+     | [ H : _ = Yellow |- _] => rewrite H in *; pisp t n
+     | [ H : _ = Green |- _] => rewrite H in *; pisp t n
+     | [ H : Red = _ |- _] => rewrite <- H in *; pisp t n
+     | [ H : Yellow = _ |- _] => rewrite <- H in *; pisp t n
+     | [ H : Green = _ |- _] => rewrite <- H in *; pisp t n
 
 (*     | [ H :*)
+     | _ =>
+       match n with
+         | S ?m =>
+           match goal with
+             | [ |- context
+               [match ?x with
+                  | Red => _
+                  | Yellow => _
+                  | Green => _
+                end]] => cutThis x; abstract (pisp t m)
+             | [ |- context
+               [match ?x with
+                  | Zero => _
+                  | One _ => _ 
+                  | Two _ _ => _
+                  | Three _ _ _ => _
+                  | Four _ _ _ _ => _
+                  | Five _ _ _ _ _ => _
+                end]] => cutThis x; abstract (pisp t m)
+             | [ |- context[
+               match ?x with
+                 | Single _ _ => _
+                 | Multiple _ _ _ _ => _ 
+               end]] => cutThis x; abstract (pisp t m)
+             | [ |- context[
+               match ?x in SubStack _ _ return _ with
+                 | Single _ _ => _
+                 | Multiple _ _ _ _ => _ 
+               end]] => cutThis x; abstract (pisp t m)
+             | [ |- context
+               [match ?x with
+                  | Empty => _
+                  | Full _ _ _ => _ 
+                end]] => cutThis x; abstract (pisp t m)
 
-     | [ X : Color |- context
-       [match ?x with
-          | Red => _
-          | Yellow => _
-          | Green => _
-        end]] => equate X x; destruct x
-
-     | [ X : SubStack _ _ |- context
-       [match topSubStackColor ?x with
-          | Red => _
-          | Yellow => _
-          | Green => _
-        end]] => equate X x; cutThis (topSubStackColor x)
-
-     | [ X : SubStack _ _ |- context
-       [match bottomSubStackColor ?x with
-          | Red => _
-          | Yellow => _
-          | Green => _
-        end]] => equate X x; cutThis (bottomSubStackColor x)
-  
-     | [ X: Buffer _ |- context
-       [match ?x with
-          | Zero => _
-          | One _ => _ 
-          | Two _ _ => _
-          | Three _ _ _ => _
-          | Four _ _ _ _ => _
-          | Five _ _ _ _ _ => _
-        end]] => equate X x; destruct x
-
-     | [ X : SubStack _ _
-       |- context[
-         match ?x with
-           | Single _ _ => _
-           | Multiple _ _ _ _ => _ 
-         end]] => equate X x; destruct x
-     | [ X : SubStack _ _
-       |- context[
-         match ?x in SubStack _ _ return _ with
-           | Single _ _ => _
-           | Multiple _ _ _ _ => _ 
-         end]] => equate X x; destruct x
-     | [ X: Deque _ |- context
-       [match ?x with
-          | Empty => _
-          | Full _ _ _ => _ 
-        end]] => equate X x; destruct x
-(*     | [ |- context
-       [match topSubStackColor ?x with
-          | Red => _
-          | Yellow => _
-          | Green => _
-        end]] => cutThis x
-  *)   
-
-     | [ X : Color ,_: context
-       [match ?x with
-          | Red => _
-          | Yellow => _
-          | Green => _
-        end]|-_] => equate X x; destruct x
-     | [ X: Buffer _ ,_: context
-       [match ?x with
-          | Zero => _
-          | One _ => _ 
-          | Two _ _ => _
-          | Three _ _ _ => _
-          | Four _ _ _ _ => _
-          | Five _ _ _ _ _ => _
-        end]|-_] => equate X x; destruct x
-
-   | [ X : SubStack _ _,
-       _ : context[
-         match ?x with
-           | Single _ _ => _
-           | Multiple _ _ _ _ => _ 
-         end] |- _] => equate X x; destruct x
-     | [ X : SubStack _ _
-       ,_: context[
-         match ?x in SubStack _ _ return _ with
-           | Single _ _ => _
-           | Multiple _ _ _ _ => _ 
-         end]|-_] => equate X x; destruct x
-     | [ X: Deque _ ,_: context
-       [match ?x with
-          | Empty => _
-          | Full _ _ _ => _ 
-        end]|-_] => equate X x; destruct x
-(*     | [ |- context
-       [match topSubStackColor ?x with
-          | Red => _
-          | Yellow => _
-          | Green => _
-        end]] => cutThis x
-  *)   
-     
-(*    | [ |- context
-   [let (_,_) := ?x in _]] => destruct x; pisp t *)
+             | [ _: context
+               [match ?x with
+                  | Red => _
+                  | Yellow => _
+                  | Green => _
+                end]|-_] => cutThis x; abstract (pisp t m)
+             | [ _: context
+               [match ?x with
+                  | Zero => _
+                  | One _ => _ 
+                  | Two _ _ => _
+                  | Three _ _ _ => _
+                  | Four _ _ _ _ => _
+                  | Five _ _ _ _ _ => _
+                end]|-_] => cutThis x; abstract (pisp t m)
+             | [ _:context[
+               match ?x with
+                 | Single _ _ => _
+                 | Multiple _ _ _ _ => _ 
+               end]|-_] => cutThis x; abstract (pisp t m)
+             | [ _:context[
+               match ?x in SubStack _ _ return _ with
+                 | Single _ _ => _
+                 | Multiple _ _ _ _ => _ 
+               end]|-_] => cutThis x; abstract (pisp t m)
+             | [ _:context
+               [match ?x with
+                  | Empty => _
+                  | Full _ _ _ => _ 
+                end]|-_] => cutThis x; abstract (pisp t m)
+           end
+(*         | _ => auto *)
+       end
      | _ => auto
    end.
 
-Ltac asp := repeat (progress pisp auto ).
-Ltac sisp := pisp auto .
+Ltac nisp n := pisp auto n.
+
+Ltac dasp n := abstract (nisp n) || dasp (S n).
+Ltac asp := dasp 0.
+Ltac sisp := pisp auto 1.
 
 Lemma restoreBottomDoes :
   forall t (pre suf:Buffer t), 
@@ -575,7 +546,7 @@ Lemma restoreBottomDoes :
     regular (restoreBottom pre suf).
 Proof.
   intros.
-  destruct pre; asp.
+  destruct pre; nisp 1.
 Qed.
 Hint Resolve restoreBottomDoes.
 
@@ -586,7 +557,7 @@ Lemma restoreBottomPreserves :
       toListDeque (restoreBottom pre suf) = toListDeque x.
 Proof.
   intros.
-  destruct pre; asp.
+  destruct pre; nisp 1.
 Qed.
 Hint Resolve restoreBottomPreserves.
 
@@ -612,8 +583,8 @@ Lemma unzipMixApp :
     (unzipMix x y) ++ z = unzipMix x (y ++ z).
 Proof.
   clear; intros.
-  induction x; asp.
-  rewrite IHx; auto.
+  induction x; nisp 0.
+  rewrite IHx. auto.
 Qed.
 Hint Rewrite unzipMixApp : anydb.
 
@@ -685,7 +656,40 @@ Lemma injectSemiDoes :
 Proof.
   clear. intros.
   Ltac eqlr := autorewrite with anydb.
-  destruct x; repeat (pisp eqlr).
+  destruct x.
+  nisp 0.
+  pisp eqlr 3.
+  nisp 1.
+  nisp 1. nisp 2.
+  rewrite unzipMixApp.
+
+  simpl. destruct s; simpl.
+  destruct b; simpl. eqlr. destruct b0; simpl; auto. nisp 1.
+  simpl. destruct b0; simpl; eqlr; auto; nisp 1.
+simpl. destruct b0; simpl; eqlr; auto; nisp 1.
+simpl. destruct b0; simpl; eqlr; auto; nisp 1.
+simpl. destruct b0; simpl; eqlr; auto; nisp 1.
+simpl. destruct b0; simpl; eqlr; auto; nisp 1.
+simpl. nisp 0.
+
+
+destruct b0; simpl; eqlr; auto; nisp 2.
+
+
+
+simpl. destruct b0; simpl; eqlr; auto; nisp 1.simpl. destruct b0; simpl; eqlr; auto; nisp 1.simpl. destruct b0; simpl; eqlr; auto; nisp 1.
+  pisp eqlr 1.
+  simpl in H. unfold regular in H.
+  simpl in H. nisp 1.
+  nisp 0.
+  
+  rewrite unzipMixApp.  simpl. reflexivity.
+  nisp 0.
+
+
+  nisp 1.
+
+; pisp eqlr 2.
 Qed.
 
 Lemma injectSemiIsSemi :

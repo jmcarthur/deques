@@ -150,8 +150,10 @@ remover (LRT {front,sizef,rear,sizer,pendingf,pendingr}) =
                          pendingr = tail2 pendingr}),
              head rear)
 
-instance Deque LRT where
+instance Empty LRT where
     empty = lempty
+
+instance Deque LRT where
     push = insertl
     pop = removel
     inject = insertr
@@ -166,3 +168,10 @@ instance Loose (LRT a) where
                genericLength (pendingr x) <= max (2*j+2-k) 0
         where j = min (genericLength (front x)) (genericLength (rear x))
               k = max (genericLength (front x)) (genericLength (rear x))
+
+instance Eq a => Eq (LRT a) where
+    xs == ys =
+        case (pop xs,pop ys) of
+          (Nothing,Nothing) -> True
+          (Just (a,as), Just (b,bs)) -> a == b && as == bs
+          _ -> False

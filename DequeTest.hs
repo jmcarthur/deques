@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, BangPatterns #-}
 
 module DequeTest where
 
@@ -23,6 +23,16 @@ opSeqs n =
 
 act (Push x) y = push x y
 act (Inject x) y = inject y x
+{-
+act Pop x = 
+    case pop x of
+      Nothing -> empty
+      Just (_,ans) -> ans
+act Eject x = 
+    case eject x of
+      Nothing -> empty
+      Just (ans,_) -> ans
+-}
 act Pop x = snd $ fromJust $ pop x
 act Eject x = fst $ fromJust $ eject x
 
@@ -69,9 +79,18 @@ checkOps' (p:ps) x y =
 --checkOne tt = uncurry check . form tt
 
 prob :: Int
-prob = 2^9
+prob = 2^14
 
-arbList 0 i = 
+emptyOut 0 = return []
+emptyOut n =
+    do b <- arbitrary
+       let hed = if b
+                 then Pop
+                 else Eject
+       tyl <- emptyOut (n-1)
+       return (hed:tyl)
+
+arbList 0 !i = 
     do b <- arbitrary
        let hed = if b
                  then Push i
@@ -80,22 +99,25 @@ arbList 0 i =
        if (c `mod` prob) /= 0
           then
               do tyl <- arbList 1 (i+1)
-                 return $ hed:tyl
-          else return [hed]
-arbList n i = 
+                 return $ seq hed $ hed:tyl
+          else do tyl <- emptyOut 1
+                  return $ seq hed $ hed:tyl
+arbList n !i = 
     do b0 <- arbitrary
        b1 <- arbitrary
-       let (hed,m) = case (b0,b1) of 
-                       (True,True) -> (Push i,n+1)
-                       (True,_) -> (Inject i,n+1)
-                       (False,False) -> (Pop,n-1)
-                       _ -> (Eject,n-1)
+       b2 <- arbitrary
+       let (hed,m) = case (b0,b1,b2) of 
+                       (False,False,False) -> (Pop,n-1)
+                       (False,True,False) -> (Eject,n-1)
+                       (_,True,_) -> (Push i,n+1)
+                       _ -> (Inject i,n+1)
        c <- arbitrary
        if (c `mod` prob) /= 0
           then
               do tyl <- arbList m (i+1)
-                 return $ hed:tyl
-          else return [hed]
+                 return $ seq hed $ hed:tyl
+          else do tyl <- emptyOut m
+                  return $ seq hed $ hed:tyl
 
 arbSet 0 i = 
     do b <- arbitrary
@@ -124,7 +146,7 @@ arbSet n i =
 newtype Ops = Ops [Op Int] deriving (Show)
 
 instance Arbitrary Ops where
-    arbitrary = fmap Ops $ arbSet 0 prob
+    arbitrary = fmap Ops $ arbList 0 0 --fmap Ops $ arbSet 0 prob
 
 checkArb dqt (Ops r) = checkOps dqt $  r
 {-

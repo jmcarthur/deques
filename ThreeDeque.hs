@@ -1,6 +1,6 @@
 {- 
 This is an implementation of worst-case constant-time deques. 
-It is modified from the course notes of Robert Tarjan and Radu Mihaesau:
+It is modified from the course notes of Robert Tarjan and Radu Mihaescu:
 
 http://www.cs.princeton.edu/courses/archive/fall03/cs528/handouts/Notes%20on%20Catenable%20Deques.doc
 

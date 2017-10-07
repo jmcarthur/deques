@@ -1,8 +1,8 @@
 {-# LANGUAGE OverlappingInstances #-}
 
-module CheckTarjanMihaesau where
+module CheckTarjanMihaescu where
 
-import TarjanMihaesau
+import TarjanMihaescu
 import DequeTest
 
 import Test.QuickCheck

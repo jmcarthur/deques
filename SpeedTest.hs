@@ -3,7 +3,7 @@ module SpeedTest where
 import qualified DequeTest as DT
 import qualified CGD as R
 import qualified Data.Sequence as S
-import qualified TarjanMihaesau as T
+import qualified TarjanMihaescu as T
 import qualified LazyRealTimeDeque as L
 import qualified Deque as D
 import qualified BankersDeque as B
